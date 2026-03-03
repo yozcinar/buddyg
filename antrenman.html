@@ -1558,6 +1558,30 @@ function formatShortDateTR(ts) {
   return new Date(ts).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: '2-digit' });
 }
 
+function getWeightLog(metrics = st.metrics) {
+  if (!metrics) return [];
+  if (!Array.isArray(metrics.weightLog)) metrics.weightLog = [];
+  const normalized = metrics.weightLog.map((e, idx) => {
+    const weight = Number(String(e?.weight ?? '').replace(',', '.'));
+    if (!Number.isFinite(weight)) return null;
+    const parsedTs = Number(e?.ts);
+    const ts = Number.isFinite(parsedTs) && parsedTs > 0
+      ? parsedTs
+      : (Date.parse(e?.dateTime || '') || Date.parse(e?.date || '') || (Date.now() + idx));
+    const id = String(e?.id || e?._id || (`w_${ts}_${idx}`));
+    const dObj = new Date(ts);
+    return {
+      id,
+      ts,
+      date: e?.date || dObj.toLocaleDateString('tr-TR'),
+      time: e?.time || dObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+      weight: Math.round(weight * 10) / 10
+    };
+  }).filter(Boolean).sort((a, b) => a.ts - b.ts);
+  metrics.weightLog = normalized;
+  return normalized;
+}
+
 function dayProgram(d, w = st.currentWeek) {
   const wp = getWeekProgramState(w);
   const cust = wp.custom[d] || [];
@@ -1625,7 +1649,7 @@ function renderStats() {
   }
 
   const weekVal = totalPlan ? `${donePlan}/${totalPlan}` : '—';
-  const lastW = st.metrics?.weightLog?.slice(-1)[0]?.weight;
+  const lastW = getWeightLog(st.metrics).slice(-1)[0]?.weight;
   document.getElementById('statsBar').innerHTML = `
     <div class="stat-box"><div class="stat-val">${weekVal}</div><div class="stat-label">Bu Hafta</div></div>
     <div class="stat-box"><div class="stat-val">${st.currentWeek}</div><div class="stat-label">Hafta</div></div>
@@ -2329,7 +2353,8 @@ function saveUser() {
 function renderProfile() {
   const u = me();
   const m = st.metrics || { height: null, weightLog: [] };
-  const lastW = m.weightLog.slice(-1)[0]?.weight || null;
+  const weightLog = getWeightLog(m);
+  const lastW = weightLog.slice(-1)[0]?.weight || null;
   const bmi = m.height && lastW ? (lastW / ((m.height/100)**2)).toFixed(1) : null;
   let bmiColor = '#aaa', bmiCat = '';
   if (bmi) {
@@ -2339,7 +2364,7 @@ function renderProfile() {
     else                 { bmiColor = '#ff6b6b'; bmiCat = 'Obez'; }
   }
 
-  const recent = m.weightLog.slice(-7).reverse();
+  const recent = weightLog.slice(-7).reverse();
   let histHtml = recent.length ? '' : '<div style="color:var(--muted);font-size:13px;padding:8px 0;">Henüz kilo kaydı yok.</div>';
   recent.forEach((e, i) => {
     const prev = recent[i+1];
@@ -2350,19 +2375,22 @@ function renderProfile() {
       const sign = d > 0 ? '+' : '';
       if (d != 0) diffHtml = `<span class="w-diff ${cls}">${sign}${d}kg</span>`;
     }
-    histHtml += `<div class="weight-entry"><span class="w-date">${e.date}</span><div style="display:flex;align-items:center;gap:8px;">${diffHtml}<span class="w-val">${e.weight} kg</span><button class="w-del" onclick="deleteWeightEntry('${e.date}')">Sil</button></div></div>`;
+    histHtml += `<div class="weight-entry"><span class="w-date">${e.date}${e.time ? ` · ${e.time}` : ''}</span><div style="display:flex;align-items:center;gap:8px;">${diffHtml}<span class="w-val">${e.weight} kg</span><button class="w-del" onclick="deleteWeightEntry('${e.id}')">Sil</button></div></div>`;
   });
 
   let chartHtml = '';
-  if (m.weightLog.length >= 2) {
-    const pts10 = m.weightLog.slice(-10);
+  if (weightLog.length >= 2) {
+    const pts10 = weightLog.slice(-10);
     const ws = pts10.map(e => e.weight);
-    const mn = Math.min(...ws)-0.5, mx = Math.max(...ws)+0.5;
+    const rawMin = Math.min(...ws), rawMax = Math.max(...ws);
+    const pad = rawMin === rawMax ? 1 : 0.5;
+    const mn = rawMin - pad, mx = rawMax + pad;
+    const den = Math.max(0.0001, mx - mn);
     const W=340, H=70;
-    const points = ws.map((w,i) => `${(i/(ws.length-1))*(W-20)+10},${H-((w-mn)/(mx-mn))*(H-20)-10}`).join(' ');
+    const points = ws.map((w,i) => `${(i/(ws.length-1))*(W-20)+10},${H-((w-mn)/den)*(H-20)-10}`).join(' ');
     chartHtml = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin-bottom:12px;">
       <polyline points="${points}" fill="none" stroke="${u.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      ${ws.map((w,i) => { const x=(i/(ws.length-1))*(W-20)+10, y=H-((w-mn)/(mx-mn))*(H-20)-10; return `<circle cx="${x}" cy="${y}" r="4" fill="${u.color}"/>`; }).join('')}
+      ${ws.map((w,i) => { const x=(i/(ws.length-1))*(W-20)+10, y=H-((w-mn)/den)*(H-20)-10; return `<circle cx="${x}" cy="${y}" r="4" fill="${u.color}"/>`; }).join('')}
     </svg>`;
   }
 
@@ -2464,20 +2492,40 @@ function saveMetrics() {
   if (h > 100 && h < 250) st.metrics.height = h;
   else if (String(document.getElementById('hInput').value || '').trim()) toast('Boy değeri geçersiz');
   if (w > 30 && w < 300) {
-    const today = new Date().toLocaleDateString('tr-TR');
-    const log = st.metrics.weightLog;
-    const idx = log.findIndex(e => e.date === today);
-    if (idx >= 0) log[idx].weight = w; else log.push({ date: today, weight: w });
+    const now = new Date();
+    const nowTs = now.getTime();
+    const today = now.toLocaleDateString('tr-TR');
+    const nowTime = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    const log = getWeightLog(st.metrics);
+    const last = log[log.length - 1];
+    const shouldUpdateLast = !!last && Math.abs(nowTs - last.ts) < (5 * 60 * 1000);
+    if (shouldUpdateLast) {
+      last.weight = Math.round(w * 10) / 10;
+      last.ts = nowTs;
+      last.date = today;
+      last.time = nowTime;
+    } else {
+      log.push({
+        id: `w_${generateExerciseId()}`,
+        ts: nowTs,
+        date: today,
+        time: nowTime,
+        weight: Math.round(w * 10) / 10
+      });
+    }
+    st.metrics.weightLog = log;
   }
   else if (String(document.getElementById('wInput').value || '').trim()) toast('Kilo değeri geçersiz');
   saveData(); renderStats(); renderProfile(); toast('✓ Kaydedildi');
 }
 
-function deleteWeightEntry(dateStr) {
+function deleteWeightEntry(entryId) {
   if (!st.metrics?.weightLog?.length) return;
-  const idx = st.metrics.weightLog.findIndex(e => e.date === dateStr);
+  const log = getWeightLog(st.metrics);
+  const idx = log.findIndex(e => e.id === entryId);
   if (idx < 0) return;
-  st.metrics.weightLog.splice(idx, 1);
+  log.splice(idx, 1);
+  st.metrics.weightLog = log;
   saveData();
   renderStats();
   renderProfile();
