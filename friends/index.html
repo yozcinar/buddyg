@@ -15,6 +15,8 @@
     --glass-border: rgba(255,255,255,0.11);
     --glass-hi: rgba(255,255,255,0.08);
     --glass-shadow: 0 12px 26px rgba(0,0,0,0.28);
+    --glass-rim: rgba(255,255,255,0.2);
+    --glass-rim-soft: rgba(255,255,255,0.08);
     --anim-fast: 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
     --anim-mid: 0.28s cubic-bezier(0.22, 1, 0.36, 1);
     --r-sm: 10px;
@@ -222,6 +224,23 @@
     box-shadow: inset 0 1px 0 var(--glass-hi), var(--glass-shadow);
     backdrop-filter: blur(10px) saturate(120%);
     -webkit-backdrop-filter: blur(10px) saturate(120%);
+  }
+  .profile-card, .metric-box, .program-card, .stat-box, .user-pill {
+    position: relative;
+    overflow: hidden;
+  }
+  .profile-card::after, .metric-box::after, .program-card::after, .stat-box::after, .user-pill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0 1px 0 var(--glass-rim),
+      inset 0 0 0 1px var(--glass-rim-soft),
+      0 0 0 1px rgba(255,255,255,0.06),
+      0 0 24px rgba(255,255,255,0.035);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 38%);
   }
 
   /* STATS BAR */
