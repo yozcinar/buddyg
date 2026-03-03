@@ -114,21 +114,24 @@
     color: transparent;
     text-shadow: 0 0 20px rgba(142,232,255,0.18);
   }
-  .team-cta-row { margin-top: 10px; }
-  .bass-btn {
-    width: 100%;
+  .bass-fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
+    z-index: 210;
+    min-width: 156px;
     border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 12px;
-    padding: 10px 12px;
+    border-radius: 999px;
+    padding: 10px 14px;
     background: linear-gradient(180deg, rgba(32,186,89,0.2) 0%, rgba(19,111,58,0.3) 100%);
     color: #d8ffe8;
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px;
-    letter-spacing: 1.6px;
+    font-size: 18px;
+    letter-spacing: 1.4px;
     cursor: pointer;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 24px rgba(0,0,0,0.28);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 24px rgba(0,0,0,0.38);
   }
-  .bass-btn:active { transform: scale(0.985); opacity: 0.94; }
+  .bass-fab:active { transform: scale(0.985); opacity: 0.94; }
   .team-hero-shell {
     position: relative;
     margin-top: 12px;
@@ -157,8 +160,8 @@
       radial-gradient(80% 120% at 100% 50%, rgba(6,8,11,0.75) 0%, rgba(6,8,11,0) 62%);
   }
   .team-hero-img {
-    width: 100%; height: 100%; object-fit: cover; object-position: center 28%;
-    filter: saturate(1.05) contrast(1.05);
+    width: 100%; height: 100%; object-fit: cover; object-position: center 22%;
+    filter: grayscale(0.92) saturate(0.15) contrast(1.12);
     animation: heroDrift 15s ease-in-out infinite alternate;
   }
   .team-hero-fallback {
@@ -168,8 +171,8 @@
     font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px;
   }
   @keyframes heroDrift {
-    0% { transform: scale(1.06) translateX(-1.5%) translateY(0%); }
-    100% { transform: scale(1.08) translateX(1.4%) translateY(-1.2%); }
+    0% { transform: scale(1.14) translateX(-1.2%) translateY(0%); }
+    100% { transform: scale(1.17) translateX(1.1%) translateY(-1.1%); }
   }
   .week-btn {
     flex-shrink: 0; background: var(--card); border: 1px solid var(--border);
@@ -789,9 +792,6 @@
       </button>
     </div>
     <div class="team-motto">Risk Almayan Viski İçemez!</div>
-    <div class="team-cta-row">
-      <button class="bass-btn" onclick="playTeamPlaylist()">BAS ULAN BASS</button>
-    </div>
     <div class="team-hero-shell">
       <img class="team-hero-img" src="team-hero.jpg" alt="BuddyG team stage"
         onerror="this.style.display='none';document.getElementById('teamHeroFallback').style.display='flex';">
@@ -813,6 +813,8 @@
   </div>
   <div id="profileContent"></div>
 </div>
+
+<button class="bass-fab" onclick="playTeamPlaylist()">BAS ULAN BASS</button>
 
 <!-- ====== BOTTOM NAV ====== -->
 <div class="bottom-nav">
