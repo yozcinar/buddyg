@@ -595,6 +595,24 @@
   </div>
 </div>
 
+<!-- ====== AUTH MODAL ====== -->
+<div class="overlay" id="authOverlay" style="display:none;align-items:center;justify-content:center;">
+  <div class="sheet" style="border-radius:24px;max-width:360px;margin:20px;">
+    <div style="padding:30px 24px 8px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:10px;">🔐</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);">HESAP GİRİŞİ</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:16px;">Verilerini bulutta tutmak için giriş yap</div>
+      <input class="form-input" id="authEmail" type="email" placeholder="E-posta" style="margin-bottom:10px;">
+      <input class="form-input" id="authPass" type="password" placeholder="Şifre" onkeydown="if(event.key==='Enter')authSignIn()">
+      <div id="authMsg" style="font-size:12px;color:var(--muted);margin-top:10px;min-height:18px;"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn primary" onclick="authSignIn()">GİRİŞ YAP</button>
+      <button class="sheet-btn secondary" onclick="authSignUp()">KAYIT OL</button>
+    </div>
+  </div>
+</div>
+
 <!-- ====== ADD USER MODAL ====== -->
 <div class="overlay" id="addUserOverlay" onclick="closeAddUser(event)">
   <div class="sheet">
@@ -648,6 +666,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ============================================================
 // DATA
@@ -814,29 +833,96 @@ const PROGRAM_TEMPLATES = {
 // ============================================================
 // STATE
 // ============================================================
-function loadProfiles() {
-  return JSON.parse(localStorage.getItem('gym_profiles') || 'null') || { currentId: null, users: [] };
-}
-function saveProfiles() { localStorage.setItem('gym_profiles', JSON.stringify(profiles)); }
-function loadUserData(uid) {
-  return JSON.parse(localStorage.getItem('gym_' + uid) || 'null') || {
+const SUPABASE_URL = ''; // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON_KEY = ''; // public anon key
+const CLOUD_ENABLED = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+
+let sb = null;
+let sbUser = null;
+let cloudBooted = false;
+let saveTimer = null;
+let userDataMap = {};
+
+function defaultUserData() {
+  return {
     currentWeek: 1, currentDay: 1, weeks: {},
     metrics: { height: null, weightLog: [] },
     custom: {}, dayNames: {}
   };
 }
-function saveData() { localStorage.setItem('gym_' + profiles.currentId, JSON.stringify(st)); }
+
+function loadProfiles() {
+  return JSON.parse(localStorage.getItem('gym_profiles') || 'null') || { currentId: null, users: [] };
+}
+function saveProfiles() {
+  localStorage.setItem('gym_profiles', JSON.stringify(profiles));
+  queueCloudSave();
+}
+function loadUserData(uid) {
+  if (!uid) return defaultUserData();
+  if (userDataMap[uid]) return JSON.parse(JSON.stringify(userDataMap[uid]));
+  const local = JSON.parse(localStorage.getItem('gym_' + uid) || 'null') || defaultUserData();
+  userDataMap[uid] = JSON.parse(JSON.stringify(local));
+  return local;
+}
+function saveData() {
+  if (profiles.currentId) {
+    userDataMap[profiles.currentId] = JSON.parse(JSON.stringify(st));
+    localStorage.setItem('gym_' + profiles.currentId, JSON.stringify(st));
+  }
+  queueCloudSave();
+}
+
+function saveCloudCache(payload) {
+  if (!sbUser) return;
+  localStorage.setItem('gym_cloud_cache_' + sbUser.id, JSON.stringify(payload));
+}
+function loadCloudCache(uid) {
+  return JSON.parse(localStorage.getItem('gym_cloud_cache_' + uid) || 'null');
+}
+
+function normalizeStatePayload(payload) {
+  const safe = payload || {};
+  const p = safe.profiles || { currentId: null, users: [] };
+  const ud = safe.userDataMap || {};
+  if (!p.currentId && p.users.length) p.currentId = p.users[0].id;
+  return { profiles: p, userDataMap: ud };
+}
+function collectStatePayload() {
+  const map = JSON.parse(JSON.stringify(userDataMap || {}));
+  if (profiles.currentId) map[profiles.currentId] = JSON.parse(JSON.stringify(st));
+  return { profiles: JSON.parse(JSON.stringify(profiles)), userDataMap: map };
+}
+function applyStatePayload(payload) {
+  const norm = normalizeStatePayload(payload);
+  profiles = norm.profiles;
+  userDataMap = norm.userDataMap;
+  if (!profiles.currentId && profiles.users.length) profiles.currentId = profiles.users[0].id;
+  st = loadUserData(profiles.currentId);
+  saveProfiles();
+}
+
+function queueCloudSave() {
+  if (!cloudBooted || !sb || !sbUser) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { flushCloudSave(); }, 500);
+}
+async function flushCloudSave() {
+  if (!cloudBooted || !sb || !sbUser) return;
+  const payload = collectStatePayload();
+  saveCloudCache(payload);
+  const { error } = await sb.from('gym_user_data').upsert({
+    user_id: sbUser.id,
+    payload,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  if (error) console.error('Cloud save error:', error.message);
+}
 
 let profiles = loadProfiles();
-
-// İlk açılışta: isim sor
-if (!profiles.users.length) {
-  // Kullanıcı ismi girilene kadar bekle — openFirstLaunch() çağrılır
-}
 if (!profiles.currentId && profiles.users.length) {
   profiles.currentId = profiles.users[0].id; saveProfiles();
 }
-
 let st = loadUserData(profiles.currentId);
 
 function me() { return profiles.users.find(u => u.id === profiles.currentId); }
@@ -853,6 +939,113 @@ function switchUser(uid) {
 }
 
 function setAccent(c) { document.documentElement.style.setProperty('--accent', c); }
+
+function setAuthMsg(msg, isErr) {
+  const el = document.getElementById('authMsg');
+  if (!el) return;
+  el.style.color = isErr ? '#ff8b8b' : 'var(--muted)';
+  el.textContent = msg;
+}
+function showAuthOverlay() {
+  const ov = document.getElementById('authOverlay');
+  ov.style.display = 'flex';
+  ov.classList.add('open');
+}
+function hideAuthOverlay() {
+  const ov = document.getElementById('authOverlay');
+  ov.classList.remove('open');
+  ov.style.display = 'none';
+}
+async function authSignIn() {
+  if (!sb) return;
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  if (!email || !pass) { setAuthMsg('E-posta ve şifre gerekli.', true); return; }
+  setAuthMsg('Giriş yapılıyor...', false);
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { setAuthMsg(error.message, true); return; }
+  setAuthMsg('Giriş başarılı.', false);
+}
+async function authSignUp() {
+  if (!sb) return;
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  if (!email || !pass) { setAuthMsg('E-posta ve şifre gerekli.', true); return; }
+  if (pass.length < 6) { setAuthMsg('Şifre en az 6 karakter olmalı.', true); return; }
+  setAuthMsg('Hesap oluşturuluyor...', false);
+  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  if (error) { setAuthMsg(error.message, true); return; }
+  if (!data.session) {
+    setAuthMsg('Kayıt tamam. E-posta doğrulaması gerekebilir, sonra giriş yap.', false);
+    return;
+  }
+  setAuthMsg('Kayıt başarılı.', false);
+}
+async function authSignOut() {
+  if (!sb) return;
+  await sb.auth.signOut();
+}
+async function bootstrapCloudForUser() {
+  if (!sbUser) return;
+  let payload = null;
+  const { data, error } = await sb.from('gym_user_data').select('payload').eq('user_id', sbUser.id).maybeSingle();
+  if (error && !String(error.message || '').includes('0 rows')) {
+    setAuthMsg('Bulut tablosu hazır değil. Önce SQL kurulumunu yapman lazım.', true);
+    console.error(error);
+    return;
+  }
+  if (data?.payload) payload = data.payload;
+  if (!payload) payload = loadCloudCache(sbUser.id);
+  if (!payload) payload = { profiles: { currentId: null, users: [] }, userDataMap: {} };
+  applyStatePayload(payload);
+
+  if (!profiles.users.length) {
+    profiles = { currentId: sbUser.id, users: [] };
+    userDataMap = {};
+    st = defaultUserData();
+    initFirstLaunch();
+  } else {
+    const u = me();
+    setAccent((u && u.color) || COLORS[0]);
+    render();
+  }
+
+  cloudBooted = true;
+  hideAuthOverlay();
+  queueCloudSave();
+}
+async function initCloudIfConfigured() {
+  if (!CLOUD_ENABLED || !window.supabase) {
+    if (!profiles.users.length) initFirstLaunch();
+    else {
+      setAccent((me() && me().color) || COLORS[0]);
+      render();
+    }
+    return;
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  showAuthOverlay();
+  setAuthMsg('Giriş yap veya kayıt ol.', false);
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    sbUser = session.user;
+    await bootstrapCloudForUser();
+  }
+
+  sb.auth.onAuthStateChange(async (event, sessionNow) => {
+    if (event === 'SIGNED_OUT') {
+      sbUser = null;
+      cloudBooted = false;
+      showAuthOverlay();
+      return;
+    }
+    if (sessionNow?.user) {
+      sbUser = sessionNow.user;
+      await bootstrapCloudForUser();
+    }
+  });
+}
 
 // ============================================================
 // HELPERS
@@ -1353,6 +1546,10 @@ function closeVideoModal() {
 // USER SWITCHER
 // ============================================================
 function openSwitcher() {
+  if (CLOUD_ENABLED) {
+    switchPage('profile');
+    return;
+  }
   const list = document.getElementById('switcherList');
   list.innerHTML = '';
   profiles.users.forEach(u => {
@@ -1378,6 +1575,7 @@ function closeSwitcher(e) { if (e.target.id === 'switcherOverlay') document.getE
 // ============================================================
 let pickedColor = COLORS[0];
 function openAddUser() {
+  if (CLOUD_ENABLED) { toast('Bulut modunda tek hesap kullanılır.'); return; }
   document.getElementById('switcherOverlay').classList.remove('open');
   document.getElementById('newUserName').value = '';
   pickedColor = COLORS[profiles.users.length % COLORS.length];
@@ -1394,6 +1592,7 @@ function openAddUser() {
 }
 function closeAddUser(e) { if (e.target.id === 'addUserOverlay') document.getElementById('addUserOverlay').classList.remove('open'); }
 function saveUser() {
+  if (CLOUD_ENABLED) return;
   const name = document.getElementById('newUserName').value.trim();
   if (!name) { document.getElementById('newUserName').focus(); return; }
   const u = { id: Date.now().toString(), name, color: pickedColor, created: Date.now() };
@@ -1452,6 +1651,7 @@ function renderProfile() {
       <div class="u-info"><div class="u-name">${u2.name}</div><div class="u-sub">${u2.id===profiles.currentId?'Aktif':'Geçmek için tıkla'}</div></div>
       ${u2.id===profiles.currentId?'<span class="active-badge">AKTİF</span>':''}
     </div>`).join('');
+  const accountEmail = sbUser?.email || '';
 
   document.getElementById('profileContent').innerHTML = `
     <div class="profile-card">
@@ -1514,9 +1714,15 @@ function renderProfile() {
     </div>
 
     <div class="team-section" style="margin-top:24px;">
-      <div class="section-title">TAKIM</div>
+      <div class="section-title">${CLOUD_ENABLED ? 'HESAP' : 'TAKIM'}</div>
+      ${CLOUD_ENABLED ? `
+      <div class="program-card">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Giriş yapılan hesap</div>
+        <div style="font-weight:700;">${accountEmail || '—'}</div>
+        <button class="program-btn danger" style="margin-top:12px;" onclick="authSignOut()">Çıkış Yap</button>
+      </div>` : `
       ${usersHtml}
-      <button class="add-user-btn" onclick="openAddUser()">+ Arkadaş Ekle</button>
+      <button class="add-user-btn" onclick="openAddUser()">+ Arkadaş Ekle</button>`}
     </div>
     <div style="height:24px;"></div>
   `;
@@ -1630,24 +1836,22 @@ function initFirstLaunch() {
 function firstLaunchSave() {
   const name = document.getElementById('firstLaunchName').value.trim();
   if (!name) { document.getElementById('firstLaunchName').focus(); return; }
-  const u = { id: Date.now().toString(), name, color: firstLaunchPickedColor, created: Date.now() };
-  profiles.users.push(u);
-  profiles.currentId = u.id;
+  const uid = (CLOUD_ENABLED && sbUser) ? sbUser.id : Date.now().toString();
+  const u = { id: uid, name, color: firstLaunchPickedColor, created: Date.now() };
+  profiles.users = [u];
+  profiles.currentId = uid;
+  userDataMap[uid] = defaultUserData();
   saveProfiles();
-  st = loadUserData(u.id);
+  st = loadUserData(uid);
   document.getElementById('firstLaunchOverlay').style.display = 'none';
   setAccent(u.color);
   render();
+  queueCloudSave();
   // İlk giriş: şablon seçtir
   openProgramTemplates();
 }
 
-if (!profiles.users.length) {
-  initFirstLaunch();
-} else {
-  setAccent(me().color);
-  render();
-}
+initCloudIfConfigured();
 </script>
 </body>
 </html>
