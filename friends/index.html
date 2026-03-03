@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>BuddyG</title>
+<link rel="icon" href="buddyglogo.jpg">
+<link rel="apple-touch-icon" href="buddyglogo.jpg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -89,14 +91,6 @@
     display: inline-block;
     isolation: isolate;
   }
-  .app-title-wrap.logo::before {
-    left: -4px;
-    right: -4px;
-    top: -2px;
-    bottom: -2px;
-    opacity: 0.24;
-    filter: blur(15px);
-  }
   .app-title-wrap::before {
     content: "";
     position: absolute;
@@ -120,12 +114,6 @@
   .app-title {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 36px; letter-spacing: 2px; line-height: 1; color: var(--accent);
-  }
-  .app-logo-img {
-    height: 52px;
-    width: auto;
-    display: block;
-    object-fit: contain;
   }
   .mini-bass-btn {
     border: 1px solid rgba(255,255,255,0.2);
@@ -882,7 +870,7 @@
     <div class="header-top">
       <div>
         <div class="brand-row">
-          <div class="app-title-wrap logo"><img class="app-logo-img" src="buddyglogo.jpg" alt="BuddyG"></div>
+          <div class="app-title-wrap"><div class="app-title">BUDDYG</div></div>
           <button class="mini-bass-btn" onclick="playTeamPlaylist()">BAS ULAN BASS</button>
         </div>
         <div class="date-text" id="dateText"></div>

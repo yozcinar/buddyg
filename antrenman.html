@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>BuddyG</title>
+<link rel="icon" href="buddyglogo.jpg">
+<link rel="apple-touch-icon" href="buddyglogo.jpg">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -78,12 +80,6 @@
   .app-title {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 36px; letter-spacing: 2px; line-height: 1; color: var(--accent);
-  }
-  .app-logo-img {
-    height: 52px;
-    width: auto;
-    display: block;
-    object-fit: contain;
   }
   .date-text { color: var(--muted); font-size: 13px; margin-top: 4px; }
   .user-pill {
@@ -717,7 +713,7 @@
   <div class="header">
     <div class="header-top">
       <div>
-        <img class="app-logo-img" src="buddyglogo.jpg" alt="BuddyG">
+        <div class="app-title">BUDDYG</div>
         <div class="date-text" id="dateText"></div>
       </div>
       <button class="user-pill" onclick="openSwitcher()">
