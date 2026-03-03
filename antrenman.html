@@ -48,7 +48,9 @@
     width: 28px; height: 28px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-family: 'Bebas Neue', sans-serif; font-size: 13px; color: #000; font-weight: bold;
+    overflow: hidden;
   }
+  .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
   .user-pill-name { font-size: 13px; font-weight: 500; }
 
   /* WEEK NAV */
@@ -258,7 +260,9 @@
     width: 54px; height: 54px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #000;
+    overflow: hidden;
   }
+  .profile-actions { margin-left: auto; display: flex; gap: 8px; }
   .profile-name { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; line-height: 1; }
   .profile-since { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .edit-name-btn {
@@ -380,6 +384,7 @@
     width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: #000;
+    overflow: hidden;
   }
   .u-info { flex: 1; }
   .u-name { font-size: 15px; font-weight: 600; }
@@ -551,6 +556,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<input id="profilePhotoInput" type="file" accept="image/*" style="display:none" onchange="onProfilePhotoSelected(event)">
 
 <!-- ====== VIDEO MODAL ====== -->
 <div class="overlay" id="videoOverlay" onclick="closeVideo(event)">
@@ -1167,6 +1173,17 @@ let st = loadUserData(profiles.currentId);
 
 function me() { return profiles.users.find(u => u.id === profiles.currentId); }
 function initials(name) { return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2); }
+function renderAvatarElement(el, u) {
+  if (!el || !u) return;
+  if (u.photo) {
+    el.style.background = 'transparent';
+    el.innerHTML = `<img src="${u.photo}" alt="${u.name}" class="avatar-img">`;
+  } else {
+    el.innerHTML = '';
+    el.textContent = initials(u.name);
+    el.style.background = u.color;
+  }
+}
 
 function switchUser(uid) {
   saveData();
@@ -1179,6 +1196,53 @@ function switchUser(uid) {
 }
 
 function setAccent(c) { document.documentElement.style.setProperty('--accent', c); }
+
+function pickProfilePhoto() {
+  const inp = document.getElementById('profilePhotoInput');
+  if (!inp) return;
+  inp.click();
+}
+
+function onProfilePhotoSelected(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Lütfen bir görsel seç'); return; }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxSide = 360;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { toast('Görsel işlenemedi'); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      const photoData = canvas.toDataURL('image/jpeg', 0.84);
+
+      const u = me();
+      if (!u) return;
+      u.photo = photoData;
+      try {
+        saveProfiles();
+      } catch (_) {
+        toast('Fotoğraf büyük, daha küçük bir görsel seç');
+        return;
+      }
+      renderHeader();
+      if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
+      toast('✓ Profil fotoğrafı güncellendi');
+    };
+    img.onerror = () => toast('Görsel okunamadı');
+    img.src = String(reader.result || '');
+  };
+  reader.onerror = () => toast('Görsel okunamadı');
+  reader.readAsDataURL(file);
+}
 
 function setAuthMsg(msg, isErr) {
   const el = document.getElementById('authMsg');
@@ -1363,8 +1427,7 @@ function switchPage(p) {
 function renderHeader() {
   const u = me();
   const av = document.getElementById('hAvatar');
-  av.textContent = initials(u.name);
-  av.style.background = u.color;
+  renderAvatarElement(av, u);
   document.getElementById('hName').textContent = u.name;
   const now = new Date();
   const days = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
@@ -1979,7 +2042,7 @@ function openSwitcher() {
     const el = document.createElement('div');
     el.className = 'user-item' + (u.id === profiles.currentId ? ' me' : '');
     el.innerHTML = `
-      <div class="u-avatar" style="background:${u.color}">${initials(u.name)}</div>
+      <div class="u-avatar" style="${u.photo ? 'background:transparent;' : `background:${u.color};`}">${u.photo ? `<img src="${u.photo}" alt="${u.name}" class="avatar-img">` : initials(u.name)}</div>
       <div class="u-info">
         <div class="u-name">${u.name}</div>
         <div class="u-sub">${u.id === profiles.currentId ? 'Aktif kullanıcı' : 'Geçmek için tıkla'}</div>
@@ -2070,7 +2133,7 @@ function renderProfile() {
 
   const usersHtml = profiles.users.map(u2 => `
     <div class="user-item ${u2.id===profiles.currentId?'me':''}" ${u2.id!==profiles.currentId?`onclick="switchUser('${u2.id}')"`:''}>
-      <div class="u-avatar" style="background:${u2.color}">${initials(u2.name)}</div>
+      <div class="u-avatar" style="${u2.photo ? 'background:transparent;' : `background:${u2.color};`}">${u2.photo ? `<img src="${u2.photo}" alt="${u2.name}" class="avatar-img">` : initials(u2.name)}</div>
       <div class="u-info"><div class="u-name">${u2.name}</div><div class="u-sub">${u2.id===profiles.currentId?'Aktif':'Geçmek için tıkla'}</div></div>
       ${u2.id===profiles.currentId?'<span class="active-badge">AKTİF</span>':''}
     </div>`).join('');
@@ -2079,12 +2142,15 @@ function renderProfile() {
   document.getElementById('profileContent').innerHTML = `
     <div class="profile-card">
       <div class="profile-card-top">
-        <div class="avatar-lg" style="background:${u.color}">${initials(u.name)}</div>
+        <div class="avatar-lg" style="${u.photo ? 'background:transparent;' : `background:${u.color};`}">${u.photo ? `<img src="${u.photo}" alt="${u.name}" class="avatar-img">` : initials(u.name)}</div>
         <div id="nameArea" style="flex:1;">
           <div class="profile-name">${u.name}</div>
           <div class="profile-since">Üye · ${new Date(u.created).toLocaleDateString('tr-TR')}</div>
         </div>
-        <button class="edit-name-btn" onclick="editName()">Düzenle</button>
+        <div class="profile-actions">
+          <button class="edit-name-btn" onclick="pickProfilePhoto()">Fotoğraf</button>
+          <button class="edit-name-btn" onclick="editName()">Düzenle</button>
+        </div>
       </div>
     </div>
 
