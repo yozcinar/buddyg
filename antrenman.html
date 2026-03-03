@@ -1612,7 +1612,6 @@ function renderWorkout() {
     <div style="height:20px;"></div>
   `;
 
-  const baseLen = BASE_PROGRAM[d]?.exercises?.length || 0;
   const list = document.getElementById('exList');
   prog.exercises.forEach((ex, i) => {
     const ed = exData(w, d, i);
@@ -1636,7 +1635,7 @@ function renderWorkout() {
     const tip = ex.tip || TIPS[ex.name] || '';
     const videoUrl = getVideoUrl(ex.name);
     const hasVid = !!videoUrl;
-    const custIdx = i - baseLen;
+    const custIdx = i;
     const n = ex.name.replace(/'/g,"\\'");
     const meta = ex.sets + ' set · ' + ex.reps + ' tekrar';
 
