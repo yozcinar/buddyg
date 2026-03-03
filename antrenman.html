@@ -1093,7 +1093,8 @@ function defaultUserData() {
   return {
     currentWeek: 1, currentDay: 1, weeks: {},
     metrics: { height: null, weightLog: [] },
-    custom: {}, dayNames: {}
+    custom: {}, dayNames: {},
+    weekPrograms: {}
   };
 }
 
@@ -1394,14 +1395,38 @@ function dayData(w, d) {
 }
 function exData(w, d, i) { const dd = dayData(w,d); if (!dd.exercises[i]) dd.exercises[i] = {done:false,sets:{}}; return dd.exercises[i]; }
 
+function cloneJson(v) { return JSON.parse(JSON.stringify(v || {})); }
+function ensureWeekProgramState() {
+  if (!st.weekPrograms) st.weekPrograms = {};
+  // Backward compatibility: migrate legacy global program into week 1
+  if (!st.weekPrograms[1] && ((st.custom && Object.keys(st.custom).length) || (st.dayNames && Object.keys(st.dayNames).length))) {
+    st.weekPrograms[1] = { custom: cloneJson(st.custom || {}), dayNames: cloneJson(st.dayNames || {}) };
+  }
+}
+function getWeekProgramState(w, createIfMissing = true) {
+  ensureWeekProgramState();
+  if (!st.weekPrograms[w] && createIfMissing) {
+    let prev = null;
+    for (let x = w - 1; x >= 1; x--) {
+      if (st.weekPrograms[x]) { prev = st.weekPrograms[x]; break; }
+    }
+    const base = prev || { custom: st.custom || {}, dayNames: st.dayNames || {} };
+    st.weekPrograms[w] = { custom: cloneJson(base.custom || {}), dayNames: cloneJson(base.dayNames || {}) };
+  }
+  return st.weekPrograms[w] || { custom: {}, dayNames: {} };
+}
+function customForWeek(w = st.currentWeek) { return getWeekProgramState(w).custom; }
+function dayNamesForWeek(w = st.currentWeek) { return getWeekProgramState(w).dayNames; }
+
 function formatShortDateTR(ts) {
   if (!ts) return '';
   return new Date(ts).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: '2-digit' });
 }
 
-function dayProgram(d) {
-  const cust = st.custom[d] || [];
-  const dn = (st.dayNames || {})[d] || {};
+function dayProgram(d, w = st.currentWeek) {
+  const wp = getWeekProgramState(w);
+  const cust = wp.custom[d] || [];
+  const dn = (wp.dayNames || {})[d] || {};
   if (cust.length === 0 && !dn.name) return null;
   return {
     name: dn.name || '',
@@ -1487,8 +1512,8 @@ function renderDayTabs() {
       + (d === st.currentDay ? ' active' : '')
       + (wd[d]?.completed ? ' completed' : '')
       + (wd[d]?.rest ? ' rest' : '');
-    const dn = (st.dayNames || {})[d] || {};
-    const hasCust = (st.custom[d] || []).length > 0;
+    const dn = (dayNamesForWeek(st.currentWeek) || {})[d] || {};
+    const hasCust = (customForWeek(st.currentWeek)[d] || []).length > 0;
     const dname = wd[d]?.rest ? 'DİNLEN' : (dn.name ? dn.name.split(' ')[0] : (hasCust ? 'AKT' : '—'));
     el.innerHTML = `<div class="day-label">${labels[d]}</div><div class="day-name">${dname}</div><div class="day-dot"></div>`;
     el.onclick = () => { st.currentDay = d; saveData(); renderWorkout(); renderDayTabs(); };
@@ -1629,7 +1654,9 @@ function toggleRestDay() {
 
   if (!dd.rest) {
     // If there is workout content, warn once
-    const hasAny = (st.custom?.[d]?.length || 0) > 0 || !!(st.dayNames?.[d]?.name);
+    const weekCustom = customForWeek(w);
+    const weekNames = dayNamesForWeek(w);
+    const hasAny = (weekCustom?.[d]?.length || 0) > 0 || !!(weekNames?.[d]?.name);
     if (hasAny) {
       const ok = confirm('Bu günde antrenman içeriği var. Yine de dinlenme günü olarak işaretlensin mi?');
       if (!ok) return;
@@ -1652,7 +1679,7 @@ function toggleEx(i) { document.getElementById('ex'+i).classList.toggle('expande
 function syncDayCompletionState(w, d) {
   const dd = dayData(w, d);
   const wasCompleted = !!dd.completed;
-  const prog = dayProgram(d);
+  const prog = dayProgram(d, w);
 
   if (!prog || prog.exercises.length === 0) {
     dd.completed = false;
@@ -1704,13 +1731,15 @@ function resetProgramState() {
   st.currentDay = 1;
   st.custom = {};
   st.dayNames = {};
+  st.weekPrograms = {};
   st.metrics = keepMetrics;
 }
 
 function applyProgramPayload(payload) {
   resetProgramState();
-  st.custom = payload.custom || {};
-  st.dayNames = payload.dayNames || {};
+  st.weekPrograms[1] = { custom: cloneJson(payload.custom || {}), dayNames: cloneJson(payload.dayNames || {}) };
+  st.custom = cloneJson(payload.custom || {}); // legacy compatibility cache
+  st.dayNames = cloneJson(payload.dayNames || {}); // legacy compatibility cache
   saveData();
   render();
   toast('✓ Program yüklendi');
@@ -1744,10 +1773,11 @@ function openProgramTemplates() {
 function closeProgram(e) { if (e.target.id === 'programOverlay') document.getElementById('programOverlay').classList.remove('open'); }
 
 function exportProgram() {
+  const wp = getWeekProgramState(st.currentWeek);
   const payload = {
     v: 1,
-    dayNames: st.dayNames || {},
-    custom: st.custom || {}
+    dayNames: wp.dayNames || {},
+    custom: wp.custom || {}
   };
   const txt = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
   const pretty = 'GYM1.' + txt;
@@ -1919,8 +1949,9 @@ function saveExercise() {
   const sets = parseInt(document.getElementById('exSets').value) || 3;
   const reps = document.getElementById('exReps').value.trim() || '10';
   const tip = document.getElementById('exTip').value.trim();
-  if (!st.custom[addExDay]) st.custom[addExDay] = [];
-  st.custom[addExDay].push({ name, sets, reps, tip, isCustom: true });
+  const weekCustom = customForWeek(st.currentWeek);
+  if (!weekCustom[addExDay]) weekCustom[addExDay] = [];
+  weekCustom[addExDay].push({ name, sets, reps, tip, isCustom: true });
   syncDayCompletionState(st.currentWeek, addExDay);
   saveData();
   document.getElementById('addExOverlay').classList.remove('open');
@@ -1928,8 +1959,9 @@ function saveExercise() {
 }
 function delCustomEx(ci) {
   const d = st.currentDay;
-  if (st.custom[d]) {
-    st.custom[d].splice(ci, 1);
+  const weekCustom = customForWeek(st.currentWeek);
+  if (weekCustom[d]) {
+    weekCustom[d].splice(ci, 1);
     syncDayCompletionState(st.currentWeek, d);
     saveData();
     render();
@@ -2261,11 +2293,12 @@ function toast(msg) {
 // ============================================================
 function editDayName() {
   const d = st.currentDay;
-  const prog = dayProgram(d);
+  const prog = dayProgram(d, st.currentWeek);
+  const weekNames = dayNamesForWeek(st.currentWeek);
   const area = document.getElementById('dayTitleArea');
   area.innerHTML = `
     <input class="day-name-input" id="editNameIn" type="text" value="${prog.name}" placeholder="Antrenman adı" maxlength="20">
-    <input class="day-sub-input" id="editSubIn" type="text" value="${(st.dayNames||{})[d]?.sub || BASE_PROGRAM[d]?.sub || ''}" placeholder="Alt başlık" maxlength="30">
+    <input class="day-sub-input" id="editSubIn" type="text" value="${weekNames[d]?.sub || BASE_PROGRAM[d]?.sub || ''}" placeholder="Alt başlık" maxlength="30">
     <div class="day-edit-actions">
       <button class="ok" onclick="saveDayName()">Kaydet</button>
       <button class="cancel" onclick="renderWorkout()">İptal</button>
@@ -2279,8 +2312,8 @@ function saveDayName() {
   const d = st.currentDay;
   const name = document.getElementById('editNameIn').value.trim();
   const sub = document.getElementById('editSubIn').value.trim();
-  if (!st.dayNames) st.dayNames = {};
-  st.dayNames[d] = {
+  const weekNames = dayNamesForWeek(st.currentWeek);
+  weekNames[d] = {
     name: name || BASE_PROGRAM[d]?.name || '',
     sub: sub || BASE_PROGRAM[d]?.sub || ''
   };
