@@ -816,6 +816,59 @@ function getVideoUrl(name) {
   return '';
 }
 
+let wgerMediaIndex = null;
+function normExName(v) {
+  return (v || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function ensureWgerMediaIndex() {
+  if (wgerMediaIndex) return wgerMediaIndex;
+  try {
+    const r = await fetch('https://wger.de/api/v2/exerciseinfo/?limit=1000');
+    const data = await r.json();
+    const idx = {};
+    for (const ex of (data.results || [])) {
+      let media = '';
+      if (ex.videos && ex.videos.length && ex.videos[0].video) media = ex.videos[0].video;
+      else if (ex.images && ex.images.length && ex.images[0].image) media = ex.images[0].image;
+      if (!media) continue;
+      if (media.startsWith('/')) media = 'https://wger.de' + media;
+
+      for (const t of (ex.translations || [])) {
+        const n = normExName(t.name);
+        if (!n) continue;
+        if (!idx[n]) idx[n] = media;
+      }
+    }
+    wgerMediaIndex = idx;
+  } catch (e) {
+    wgerMediaIndex = {};
+  }
+  return wgerMediaIndex;
+}
+
+async function getWgerMediaUrl(name) {
+  const idx = await ensureWgerMediaIndex();
+  const key = normExName(name);
+  if (idx[key]) return idx[key];
+
+  // loose fallback by significant keyword match
+  const keys = Object.keys(idx);
+  const tokens = key.split(' ').filter(w => w.length > 2);
+  for (const tk of tokens) {
+    const hit = keys.find(k => k.includes(tk));
+    if (hit) return idx[hit];
+  }
+  return '';
+}
+
 const EXERCISE_LIBRARY = {
   gogus: {
     label: 'Göğüs',
@@ -1823,7 +1876,7 @@ function delCustomEx(ci) {
 // ============================================================
 // VIDEO MODAL
 // ============================================================
-function openVideo(name, meta) {
+async function openVideo(name, meta) {
   document.getElementById('vTitle').textContent = name;
   document.getElementById('vMeta').textContent = meta;
   document.getElementById('vTip').textContent = TIPS[name] || 'Hareketi kontrollü ve tam aralıkta yap.';
@@ -1839,14 +1892,34 @@ function openVideo(name, meta) {
     img.parentNode.insertBefore(vid, img);
   }
 
-  const openYoutubeFallback = () => {
-    const q = encodeURIComponent(`${name} exercise proper form`);
-    const yt = `https://www.youtube.com/embed?listType=search&list=${q}`;
+  const openMediaFallback = async () => {
+    const media = await getWgerMediaUrl(name);
+    if (!media) {
+      loading.style.display = 'flex';
+      loading.textContent = 'Medya bulunamadı';
+      vid.style.display = 'none';
+      img.style.display = 'none';
+      frame.style.display = 'none';
+      return;
+    }
+    if (/\.(mp4|mov)(\?|$)/i.test(media)) {
+      vid.style.display = 'block';
+      img.style.display = 'none';
+      frame.style.display = 'none';
+      loading.style.display = 'none';
+      vid.src = media;
+      vid.load();
+      vid.play().catch(() => {
+        loading.style.display = 'flex';
+        loading.textContent = 'Video açılamadı';
+      });
+      return;
+    }
     vid.style.display = 'none';
-    img.style.display = 'none';
-    frame.style.display = 'block';
+    frame.style.display = 'none';
     loading.style.display = 'none';
-    frame.src = yt;
+    img.style.display = 'block';
+    img.src = media;
   };
 
   frame.style.display = 'none';
@@ -1860,7 +1933,7 @@ function openVideo(name, meta) {
     const timeoutId = setTimeout(() => {
       if (settled) return;
       settled = true;
-      openYoutubeFallback();
+      openMediaFallback();
     }, 2500);
 
     vid.onloadeddata = () => {
@@ -1869,19 +1942,19 @@ function openVideo(name, meta) {
       clearTimeout(timeoutId);
       loading.style.display = 'none';
       vid.style.display = 'block';
-      vid.play().catch(() => openYoutubeFallback());
+      vid.play().catch(() => openMediaFallback());
     };
     vid.onerror = () => {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
-      openYoutubeFallback();
+      openMediaFallback();
     };
     vid.style.display = 'block';
     vid.src = videoUrl;
     vid.load();
   } else {
-    openYoutubeFallback();
+    openMediaFallback();
   }
   document.getElementById('videoOverlay').classList.add('open');
 }
