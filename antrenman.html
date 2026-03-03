@@ -263,45 +263,65 @@
 
   /* BOTTOM NAV */
   .bottom-nav {
-    position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); left: 50%; transform: translateX(-50%);
-    width: calc(100% - 18px); max-width: 412px;
-    background: linear-gradient(180deg, rgba(14,17,22,0.9) 0%, rgba(8,10,14,0.96) 100%);
-    backdrop-filter: blur(22px) saturate(120%);
-    -webkit-backdrop-filter: blur(22px) saturate(120%);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: var(--r-xl);
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); left: 50%; transform: translateX(-50%);
+    width: min(320px, calc(100% - 24px));
+    background: linear-gradient(180deg, rgba(16,20,27,0.74) 0%, rgba(8,10,14,0.88) 100%);
+    backdrop-filter: blur(20px) saturate(145%);
+    -webkit-backdrop-filter: blur(20px) saturate(145%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
     display: grid; grid-template-columns: 1fr 1fr;
-    padding: 8px; gap: 8px;
+    padding: 6px; gap: 6px;
     z-index: 200;
-    box-shadow: 0 14px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07);
+    box-shadow: 0 16px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1);
   }
   .bottom-nav::before {
     content: "";
-    position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(79,240,255,0.35), rgba(232,255,71,0.35), transparent);
+    position: absolute; top: 1px; left: 14%; right: 14%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
     pointer-events: none;
   }
   .nav-btn {
-    background: transparent; border: 1px solid transparent; color: var(--muted);
-    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
-    padding: 9px 4px; border-radius: var(--r-lg); cursor: pointer; transition: all 0.25s;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: transparent; border: 1px solid transparent; color: rgba(255,255,255,0.58);
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600;
+    padding: 8px 6px; border-radius: 999px; cursor: pointer; transition: all 0.24s;
+    display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
     position: relative;
+    min-height: 52px;
   }
   .nav-btn.active {
-    color: var(--accent);
-    background: linear-gradient(180deg, rgba(79,240,255,0.12), rgba(232,255,71,0.09));
-    border-color: rgba(255,255,255,0.1);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 16px rgba(0,0,0,0.35);
-    transform: translateY(-1px);
+    color: #fff;
+    background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.08));
+    border-color: rgba(255,255,255,0.2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 8px 18px rgba(0,0,0,0.32);
+    transform: translateY(-0.5px);
   }
   .nav-icon {
-    font-size: 22px;
-    width: 30px; height: 30px; border-radius: 10px;
+    width: 28px; height: 28px; border-radius: 9px;
     display: inline-flex; align-items: center; justify-content: center;
-    transition: transform 0.22s ease, background-color 0.22s ease;
+    transition: transform 0.22s ease, background-color 0.22s ease, border-color 0.22s ease;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.04);
   }
-  .nav-btn.active .nav-icon { background: rgba(255,255,255,0.06); transform: scale(1.06); }
+  .nav-icon svg {
+    width: 16px; height: 16px;
+    stroke: rgba(255,255,255,0.84); fill: none; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .nav-btn.active .nav-icon {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.3);
+    transform: scale(1.04);
+  }
+  .nav-label {
+    display: inline-flex; align-items: center;
+    height: 24px; padding: 0 9px; border-radius: 999px;
+    letter-spacing: 0.2px;
+    background: rgba(255,255,255,0.03);
+  }
+  .nav-btn.active .nav-label {
+    background: rgba(255,255,255,0.14);
+  }
 
   /* PROFILE PAGE */
   .profile-header {
@@ -665,10 +685,25 @@
 <!-- ====== BOTTOM NAV ====== -->
 <div class="bottom-nav">
   <button class="nav-btn active" id="nav-workout" onclick="switchPage('workout')">
-    <span class="nav-icon">🏋️</span>Antrenman
+    <span class="nav-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 10v4"></path>
+        <path d="M6 8v8"></path>
+        <path d="M18 8v8"></path>
+        <path d="M21 10v4"></path>
+        <path d="M8 12h8"></path>
+      </svg>
+    </span>
+    <span class="nav-label">Antrenman</span>
   </button>
   <button class="nav-btn" id="nav-profile" onclick="switchPage('profile')">
-    <span class="nav-icon">👤</span>Profil
+    <span class="nav-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="3.2"></circle>
+        <path d="M5 19c1.6-3 4-4.5 7-4.5s5.4 1.5 7 4.5"></path>
+      </svg>
+    </span>
+    <span class="nav-label">Profil</span>
   </button>
 </div>
 
