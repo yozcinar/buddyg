@@ -863,10 +863,15 @@
     <div style="padding:30px 24px 8px;text-align:center;">
       <div style="font-size:40px;margin-bottom:10px;">🔐</div>
       <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);">BUDDYG FRIENDS</div>
-      <div style="font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:16px;">Bağlantı kuruluyor...</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:16px;">İsim ve şifre ile giriş yap</div>
+      <input class="form-input" id="authName" type="text" placeholder="İsim" style="margin-bottom:10px;">
+      <input class="form-input" id="authPass" type="password" placeholder="Şifre" onkeydown="if(event.key==='Enter')authSignInByName()">
       <div id="authMsg" style="font-size:12px;color:var(--muted);margin-top:10px;min-height:18px;"></div>
     </div>
-    <div class="sheet-footer"></div>
+    <div class="sheet-footer">
+      <button class="sheet-btn primary" onclick="authSignInByName()">GİRİŞ YAP</button>
+      <button class="sheet-btn secondary" onclick="authSignUpByName()">KAYIT OL</button>
+    </div>
   </div>
 </div>
 
@@ -1267,6 +1272,7 @@ let sbUser = null;
 let cloudBooted = false;
 let saveTimer = null;
 let userDataMap = {};
+let pendingAuthName = '';
 
 function defaultUserData() {
   return {
@@ -1441,24 +1447,71 @@ function hideAuthOverlay() {
   ov.style.display = 'none';
 }
 async function authSignOut() {
-  // Friends build: explicit sign-out is disabled to keep simple name-based flow.
-  toast('Bu sürümde çıkış kapalı. Profil adını düzenleyebilirsin.');
+  if (!sb) return;
+  await sb.auth.signOut();
+  showAuthOverlay();
+  setAuthMsg('Hesaptan çıkıldı.', false);
 }
-async function ensureCloudSession() {
-  if (!sb) return false;
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) {
-    sbUser = session.user;
-    return true;
-  }
-  const { data, error } = await sb.auth.signInAnonymously();
+function nameToEmail(name) {
+  const base = String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9._-]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .replace(/\.{2,}/g, '.')
+    .slice(0, 40);
+  return `${base || 'user'}@buddyg.friends.local`;
+}
+function currentAuthInput() {
+  const name = (document.getElementById('authName')?.value || '').trim();
+  const pass = document.getElementById('authPass')?.value || '';
+  return { name, pass };
+}
+function userDisplayName() {
+  const meta = sbUser?.user_metadata || {};
+  if (meta.display_name) return String(meta.display_name);
+  if (pendingAuthName) return pendingAuthName;
+  const em = sbUser?.email || '';
+  const raw = em.split('@')[0].replace(/[._-]+/g, ' ').trim();
+  return raw ? raw.slice(0, 20) : 'Sporcu';
+}
+async function authSignInByName() {
+  if (!sb) return;
+  const { name, pass } = currentAuthInput();
+  if (name.length < 2) { setAuthMsg('İsim en az 2 karakter olmalı.', true); return; }
+  if (pass.length < 6) { setAuthMsg('Şifre en az 6 karakter olmalı.', true); return; }
+  pendingAuthName = name;
+  setAuthMsg('Giriş yapılıyor...', false);
+  const email = nameToEmail(name);
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { setAuthMsg('Giriş başarısız. İsim/şifreyi kontrol et.', true); return; }
+  setAuthMsg('Giriş başarılı.', false);
+}
+async function authSignUpByName() {
+  if (!sb) return;
+  const { name, pass } = currentAuthInput();
+  if (name.length < 2) { setAuthMsg('İsim en az 2 karakter olmalı.', true); return; }
+  if (pass.length < 6) { setAuthMsg('Şifre en az 6 karakter olmalı.', true); return; }
+  pendingAuthName = name;
+  setAuthMsg('Hesap oluşturuluyor...', false);
+  const email = nameToEmail(name);
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { display_name: name } }
+  });
   if (error) {
-    setAuthMsg('Bağlantı kurulamadı. Supabase Auth > Anonymous Sign-ins özelliğini aç.', true);
-    console.error('Anon sign-in error:', error.message);
-    return false;
+    setAuthMsg('Kayıt başarısız. Başka bir isim dene veya giriş yap.', true);
+    return;
   }
-  sbUser = data?.user || data?.session?.user || null;
-  return !!sbUser;
+  if (!data.session) {
+    // If email confirm is enabled in project, sign up may require confirmation.
+    setAuthMsg('Kayıt tamamlandı. Şimdi aynı bilgilerle giriş yap.', false);
+    return;
+  }
+  setAuthMsg('Kayıt başarılı.', false);
 }
 async function bootstrapCloudForUser() {
   if (!sbUser) return;
@@ -1471,18 +1524,21 @@ async function bootstrapCloudForUser() {
   }
   if (data?.payload) payload = data.payload;
   if (!payload) payload = loadCloudCache(sbUser.id);
-  // If cloud is empty for this session, keep existing local profile instead of wiping it.
-  if (!payload && profiles?.users?.length) {
-    payload = collectStatePayload();
-  }
   if (!payload) payload = { profiles: { currentId: null, users: [] }, userDataMap: {} };
   applyStatePayload(payload);
 
   if (!profiles.users.length) {
-    profiles = { currentId: sbUser.id, users: [] };
+    const picked = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const name = userDisplayName();
+    const u = { id: sbUser.id, name, color: picked, created: Date.now() };
+    profiles = { currentId: sbUser.id, users: [u] };
     userDataMap = {};
-    st = defaultUserData();
-    initFirstLaunch();
+    userDataMap[sbUser.id] = defaultUserData();
+    st = loadUserData(sbUser.id);
+    saveProfiles();
+    setAccent(u.color);
+    render();
+    openProgramTemplates();
   } else {
     const u = me();
     setAccent((u && u.color) || COLORS[0]);
@@ -1530,18 +1586,19 @@ async function initCloudIfConfigured() {
 
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   showAuthOverlay();
-  setAuthMsg('Veri bağlantısı hazırlanıyor...', false);
-  const hasSession = await ensureCloudSession();
-  if (hasSession) await bootstrapCloudForUser();
+  setAuthMsg('İsim ve şifre ile giriş yap.', false);
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    sbUser = session.user;
+    await bootstrapCloudForUser();
+  }
 
   sb.auth.onAuthStateChange(async (event, sessionNow) => {
     if (event === 'SIGNED_OUT') {
       sbUser = null;
       cloudBooted = false;
       showAuthOverlay();
-      setAuthMsg('Bağlantı yenileniyor...', false);
-      const renewed = await ensureCloudSession();
-      if (renewed) await bootstrapCloudForUser();
+      setAuthMsg('İsim ve şifre ile tekrar giriş yap.', false);
       return;
     }
     if (sessionNow?.user) {
@@ -2521,9 +2578,9 @@ function renderProfile() {
       <div class="section-title">${CLOUD_ENABLED ? 'HESAP' : 'TAKIM'}</div>
       ${CLOUD_ENABLED ? `
       <div class="program-card">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Bağlı cihaz profili</div>
-        <div style="font-weight:700;">${u.name || accountEmail || '—'}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:10px;">Bu sürümde giriş e-posta/şifre yerine isimle başlatılır.</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Aktif hesap</div>
+        <div style="font-weight:700;">${u.name || userDisplayName() || accountEmail || '—'}</div>
+        <button class="program-btn danger" style="margin-top:12px;" onclick="authSignOut()">Hesap Değiştir</button>
       </div>` : `
       ${usersHtml}
       <button class="add-user-btn" onclick="openAddUser()">+ Arkadaş Ekle</button>`}
