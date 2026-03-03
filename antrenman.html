@@ -767,6 +767,7 @@ const TIPS = {
 const VIDEOS = {
   "Machine Chest Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-machine-chest-press-front.mp4",
   "İncline Dumbbell Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-incline-bench-press-front.mp4",
+  "Flat Dumbbell Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-bench-press-front.mp4",
   "Shoulder Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-shoulder-press-front.mp4",
   "Lateral Raise": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-lateral-raise-front.mp4",
   "Tricep Pushdown": "https://media.musclewiki.com/media/uploads/videos/branded/male-cables-tricep-pushdown-front.mp4",
@@ -782,9 +783,35 @@ const VIDEOS = {
   "Cable Row (tek kol)": "https://media.musclewiki.com/media/uploads/videos/branded/male-cables-seated-cable-row-front.mp4",
   "Bicep Curl (bar)": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-curl-front.mp4",
   "Hammer Curl": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-hammer-curl-front.mp4",
+  "Concentration Curl": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-concentration-curl-front.mp4",
   "Bulgarian Split Squat": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-bulgarian-split-squat-front.mp4",
   "Hip Thrust": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-hip-thrust-front.mp4"
 };
+
+function getVideoUrl(name) {
+  if (VIDEOS[name]) return VIDEOS[name];
+  const n = (name || '').toLowerCase();
+
+  if (n.includes('crossover') || n.includes('fly') || n.includes('pec') || n.includes('dip') || n.includes('push-up')) {
+    return VIDEOS['Machine Chest Press'];
+  }
+  if (n.includes('lat') || n.includes('row') || n.includes('pulldown') || n.includes('pullover') || n.includes('deadlift')) {
+    return VIDEOS['Lat Pulldown'];
+  }
+  if (n.includes('shoulder') || n.includes('rear delt') || n.includes('upright') || n.includes('arnold') || n.includes('lateral')) {
+    return VIDEOS['Shoulder Press'];
+  }
+  if (n.includes('squat') || n.includes('lunge') || n.includes('leg') || n.includes('calf') || n.includes('thrust')) {
+    return VIDEOS['Squat'];
+  }
+  if (n.includes('tricep') || n.includes('pushdown') || n.includes('extension') || n.includes('kickback') || n.includes('skull') || n.includes('close grip') || n.includes('bench dip')) {
+    return VIDEOS['Tricep Pushdown'];
+  }
+  if (n.includes('curl') || n.includes('bicep') || n.includes('preacher') || n.includes('concentration')) {
+    return VIDEOS['Bicep Curl (bar)'];
+  }
+  return '';
+}
 
 const EXERCISE_LIBRARY = {
   gogus: {
@@ -1445,7 +1472,8 @@ function renderWorkout() {
     }
 
     const tip = ex.tip || TIPS[ex.name] || '';
-    const hasVid = !!VIDEOS[ex.name];
+    const videoUrl = getVideoUrl(ex.name);
+    const hasVid = !!videoUrl;
     const custIdx = i - baseLen;
     const n = ex.name.replace(/'/g,"\\'");
     const meta = ex.sets + ' set · ' + ex.reps + ' tekrar';
@@ -1796,7 +1824,7 @@ function openVideo(name, meta) {
   document.getElementById('vTitle').textContent = name;
   document.getElementById('vMeta').textContent = meta;
   document.getElementById('vTip').textContent = TIPS[name] || 'Hareketi kontrollü ve tam aralıkta yap.';
-  const videoUrl = VIDEOS[name] || '';
+  const videoUrl = getVideoUrl(name);
   const img = document.getElementById('vImg');
   const loading = document.getElementById('vLoading');
   let vid = document.getElementById('vidEl');
