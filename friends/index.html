@@ -1,0 +1,2717 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BuddyG</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a; --surface: rgba(12, 14, 18, 0.9); --card: rgba(10, 12, 16, 0.78);
+    --accent: #e8ff47; --text: #f0f0f0; --muted: #666;
+    --border: rgba(255,255,255,0.1); --done: #2a3a1a; --done-border: #6abf3a;
+    --glass-bg-top: rgba(16,20,27,0.68);
+    --glass-bg-bottom: rgba(8,10,14,0.88);
+    --glass-border: rgba(255,255,255,0.11);
+    --glass-hi: rgba(255,255,255,0.08);
+    --glass-shadow: 0 12px 26px rgba(0,0,0,0.28);
+    --anim-fast: 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+    --anim-mid: 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 18px;
+    --r-xl: 24px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(140% 120% at 50% -20%, #0f141a 0%, var(--bg) 48%, #050505 100%);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh; max-width: 430px;
+    margin: 0 auto; padding-bottom: 118px;
+    overflow-x: hidden;
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* AMBIENT BACKGROUND */
+  .ambient-bg {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .ambient-beam {
+    position: absolute; width: 120vw; height: 38vh; filter: blur(56px); opacity: 0.28;
+    transform-origin: 50% 50%;
+    background: linear-gradient(90deg,
+      rgba(0,0,0,0) 0%,
+      rgba(79,240,255,0.2) 40%,
+      rgba(232,255,71,0.3) 50%,
+      rgba(79,240,255,0.2) 60%,
+      rgba(0,0,0,0) 100%);
+  }
+  .beam-a { top: 12vh; left: -24vw; animation: beamMoveA 26s ease-in-out infinite alternate; }
+  .beam-b { bottom: 8vh; right: -28vw; opacity: 0.2; animation: beamMoveB 34s ease-in-out infinite alternate; }
+  @keyframes beamMoveA {
+    0% { transform: rotate(-8deg) translateX(-4vw) translateY(0); }
+    100% { transform: rotate(6deg) translateX(8vw) translateY(-2vh); }
+  }
+  @keyframes beamMoveB {
+    0% { transform: rotate(12deg) translateX(4vw) translateY(1vh); }
+    100% { transform: rotate(-10deg) translateX(-10vw) translateY(-2vh); }
+  }
+
+  .page { position: relative; z-index: 1; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* HEADER */
+  .header {
+    padding: 52px 20px 16px;
+    background: linear-gradient(180deg, rgba(10,12,16,0.9) 0%, rgba(7,9,12,0.74) 100%);
+    backdrop-filter: blur(14px) saturate(118%);
+    -webkit-backdrop-filter: blur(14px) saturate(118%);
+    position: sticky; top: 0; z-index: 100;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .app-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px; letter-spacing: 2px; line-height: 1; color: var(--accent);
+  }
+  .date-text { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .user-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 5px 12px 5px 5px;
+    cursor: pointer; transition: all 0.2s; flex-shrink: 0; color: var(--text);
+  }
+  .user-pill:active { opacity: 0.7; }
+  .user-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 13px; color: #000; font-weight: bold;
+    overflow: hidden;
+  }
+  .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+  .user-pill-name { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  /* WEEK NAV */
+  .week-nav {
+    display: flex; gap: 8px; margin-top: 14px;
+    overflow-x: auto; scrollbar-width: none; padding-bottom: 4px;
+  }
+  .week-nav::-webkit-scrollbar { display: none; }
+  .week-btn {
+    flex-shrink: 0; background: var(--card); border: 1px solid var(--border);
+    color: var(--muted); font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500; padding: 6px 14px; border-radius: var(--r-lg);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .week-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+
+  /* DARK GLASS SYSTEM */
+  .user-pill, .week-btn, .stat-box, .day-tab, .exercise-card, .profile-card, .metric-box, .program-card, .user-item, .sheet {
+    background: linear-gradient(180deg, var(--glass-bg-top) 0%, var(--glass-bg-bottom) 100%);
+    border-color: var(--glass-border);
+    box-shadow: inset 0 1px 0 var(--glass-hi), var(--glass-shadow);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+  }
+
+  /* STATS BAR */
+  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 20px; }
+  .stat-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-md); padding: 12px; text-align: center;
+  }
+  .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* DAY TABS */
+  .day-tabs { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; padding: 0 20px 16px; }
+  /* Center the last row (7 items total -> 4 + 3) with a half-card offset */
+  .day-tabs .day-tab:nth-child(5) { grid-column: 2 / span 2; }
+  .day-tab {
+    grid-column: span 2;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-md); padding: 10px 6px; text-align: center;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .day-tab.active { background: var(--accent); border-color: var(--accent); }
+  .day-tab.active .day-label, .day-tab.active .day-name { color: #000; }
+  .day-tab.completed { border-color: var(--done-border); }
+  .day-tab.rest { border-color: rgba(255,255,255,0.18); }
+  .day-tab.rest .day-label { color: rgba(255,255,255,0.55); }
+  .day-tab.rest .day-name { color: rgba(255,255,255,0.75); }
+  .day-tab.rest .day-dot { background: rgba(255,255,255,0.35); }
+  .day-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .day-tab.active .day-label { color: #000; opacity: 0.6; }
+  .day-name { font-family: 'Bebas Neue', sans-serif; font-size: 15px; color: var(--text); margin-top: 2px; }
+  .day-dot { width: 5px; height: 5px; border-radius: 50%; margin: 4px auto 0; background: transparent; }
+  .day-tab.completed .day-dot { background: var(--done-border); }
+  .day-tab.active .day-dot { background: #000; opacity: 0.4; }
+
+  /* WORKOUT */
+  .section-label { padding: 0 20px 8px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .workout-header { padding: 0 20px 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .workout-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 1px; line-height: 1; }
+  .workout-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .workout-date-stamp { font-size: 11px; color: var(--muted); margin-top: 6px; letter-spacing: 0.2px; }
+  .title-row { display: flex; align-items: baseline; gap: 8px; }
+  .edit-day-btn { background: none; border: none; color: var(--muted); font-size: 15px; cursor: pointer; padding: 0; line-height: 1; flex-shrink: 0; }
+  .edit-day-btn:active { color: var(--accent); }
+  .day-name-input {
+    background: var(--surface); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 6px 10px; color: var(--text);
+    font-family: 'Bebas Neue', sans-serif; font-size: 24px;
+    width: 100%; letter-spacing: 1px; -webkit-appearance: none;
+  }
+  .day-name-input:focus { outline: none; }
+  .day-sub-input {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 10px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    width: 100%; margin-top: 6px; -webkit-appearance: none;
+  }
+  .day-sub-input:focus { outline: none; border-color: var(--accent); }
+  .day-edit-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .day-edit-actions button {
+    padding: 7px 16px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .day-edit-actions .ok { background: var(--accent); color: #000; }
+  .day-edit-actions .cancel { background: var(--border); color: var(--text); }
+  .progress-ring { position: relative; width: 52px; height: 52px; }
+  .progress-ring svg { transform: rotate(-90deg); }
+  .progress-ring-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+  }
+
+  /* EXERCISES */
+  .exercises { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .exercise-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-lg); overflow: hidden; transition: all 0.3s;
+  }
+  .exercise-card.done { background: var(--done); border-color: var(--done-border); }
+  .exercise-card.custom-ex { border-left: 3px solid var(--accent); position: relative; }
+  .swipe-delete-slot {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 72px;
+    background: rgba(255,80,80,0.2); border-right: 1px solid rgba(255,80,80,0.35);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transform: translateX(-8px);
+    pointer-events: none; transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+  .exercise-card.swiped-open .swipe-delete-slot {
+    opacity: 1; transform: translateX(0); pointer-events: auto;
+  }
+  .swipe-delete-slot button {
+    border: none; background: rgba(255,80,80,0.95); color: #fff;
+    width: 34px; height: 34px; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer;
+  }
+  .exercise-main {
+    position: relative; z-index: 1;
+    background: linear-gradient(180deg, rgba(10, 12, 16, 1) 0%, rgba(8, 10, 14, 1) 100%);
+    transition: transform 0.18s ease-out;
+  }
+  .exercise-card.done .exercise-main {
+    background: linear-gradient(180deg, rgba(38, 56, 24, 0.96) 0%, rgba(29, 43, 18, 0.98) 100%);
+  }
+  .exercise-header { display: flex; align-items: center; padding: 14px 16px; gap: 12px; user-select: none; }
+  .ex-number { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--muted); min-width: 28px; line-height: 1; }
+  .exercise-card.done .ex-number { color: var(--done-border); }
+  .ex-info { flex: 1; cursor: pointer; min-width: 0; }
+  .ex-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .exercise-card.done .ex-name { color: #a8e06a; }
+  .ex-sets { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .ex-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+  .gif-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid var(--accent); background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--accent); transition: all 0.2s;
+  }
+  .gif-btn:active { transform: scale(0.9); background: var(--accent); color: #000; }
+  .check-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid var(--border); background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .exercise-card.done .check-btn { background: var(--done-border); border-color: var(--done-border); }
+  .check-icon { font-size: 16px; }
+
+  /* SET LOG */
+  .set-log { display: none; padding: 0 16px 14px; border-top: 1px solid var(--border); }
+  .exercise-card.expanded .set-log { display: block; }
+  .exercise-card.done .set-log { border-color: rgba(106,191,58,0.2); }
+  .set-log-title { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 10px; margin-top: 12px; }
+  .set-rows { display: flex; flex-direction: column; gap: 8px; }
+  .set-row { display: grid; grid-template-columns: 28px 1fr 1fr; gap: 8px; align-items: center; }
+  .set-num { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .set-input {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    text-align: center; width: 100%; -webkit-appearance: none;
+  }
+  .set-input:focus { outline: none; border-color: var(--accent); }
+  .set-input::placeholder { color: var(--muted); font-size: 11px; }
+  .set-tip { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+  /* BUTTONS */
+  .add-ex-btn {
+    margin: 10px 20px 0; width: calc(100% - 40px);
+    background: transparent; border: 1px dashed var(--border);
+    border-radius: var(--r-md); padding: 14px; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .add-ex-btn:active { border-color: var(--accent); color: var(--accent); }
+  .complete-btn {
+    margin: 14px 20px 0; width: calc(100% - 40px);
+    background: var(--accent); color: #000; border: none;
+    border-radius: var(--r-md); padding: 16px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .complete-btn:active { transform: scale(0.98); opacity: 0.9; }
+  .complete-btn.all-done { background: var(--done-border); }
+
+  /* REST DAY */
+  .rest-day { padding: 48px 20px; text-align: center; }
+  .rest-icon { font-size: 64px; margin-bottom: 16px; }
+  .rest-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--muted); letter-spacing: 2px; }
+  .rest-sub { font-size: 14px; color: var(--muted); margin-top: 8px; }
+
+  .divider { height: 1px; background: var(--border); margin: 0 20px 16px; }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); left: 50%; transform: translateX(-50%);
+    width: min(320px, calc(100% - 24px));
+    background: linear-gradient(180deg, rgba(16,20,27,0.74) 0%, rgba(8,10,14,0.88) 100%);
+    backdrop-filter: blur(20px) saturate(145%);
+    -webkit-backdrop-filter: blur(20px) saturate(145%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    padding: 6px; gap: 6px;
+    z-index: 200;
+    box-shadow: 0 16px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .bottom-nav::before {
+    content: "";
+    position: absolute; top: 1px; left: 14%; right: 14%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    pointer-events: none;
+  }
+  .nav-btn {
+    background: transparent; border: 1px solid transparent; color: rgba(255,255,255,0.58);
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600;
+    padding: 8px 6px; border-radius: 999px; cursor: pointer; transition: all 0.24s;
+    display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px;
+    position: relative;
+    min-height: 52px;
+  }
+  .nav-btn.active {
+    color: #fff;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    transform: scale(1.04) translateY(-0.5px);
+  }
+  .nav-icon {
+    width: 28px; height: 28px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: transform 0.22s ease, background-color 0.22s ease, border-color 0.22s ease;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.04);
+  }
+  .nav-icon svg {
+    width: 16px; height: 16px;
+    stroke: rgba(255,255,255,0.84); fill: none; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .nav-btn.active .nav-icon {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.48);
+    transform: scale(1.04);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.16), 0 0 18px rgba(255,255,255,0.18);
+  }
+  .nav-label {
+    display: inline-flex; align-items: center;
+    height: 24px; padding: 0 9px; border-radius: 999px;
+    letter-spacing: 0.2px;
+    background: transparent;
+  }
+  .nav-btn.active .nav-label {
+    background: transparent;
+    text-shadow: 0 0 12px rgba(255,255,255,0.28);
+  }
+
+  /* PROFILE PAGE */
+  .profile-header {
+    padding: 52px 20px 20px;
+    background: linear-gradient(180deg, rgba(10,12,16,0.9) 0%, rgba(7,9,12,0.74) 100%);
+    backdrop-filter: blur(14px) saturate(118%);
+    -webkit-backdrop-filter: blur(14px) saturate(118%);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .profile-header-title { font-family: 'Bebas Neue', sans-serif; font-size: 36px; letter-spacing: 2px; color: var(--accent); }
+
+  /* PROFILE CARD */
+  .profile-card {
+    margin: 16px 20px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 18px;
+  }
+  .profile-card-top { display: flex; align-items: center; gap: 14px; }
+  .avatar-lg {
+    width: 54px; height: 54px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: #000;
+    overflow: hidden;
+  }
+  .profile-actions { margin-left: auto; display: flex; gap: 8px; }
+  .profile-name { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; line-height: 1; }
+  .profile-since { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .edit-name-btn {
+    margin-left: auto; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; color: var(--text); font-size: 12px; cursor: pointer;
+  }
+
+  /* METRICS */
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 1px; color: var(--text); margin-bottom: 12px;
+  }
+  .metrics-section { padding: 0 20px 16px; }
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .metric-box { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px; }
+  .metric-lbl { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .metric-num { font-family: 'Bebas Neue', sans-serif; font-size: 38px; color: var(--accent); line-height: 1; margin-top: 4px; }
+  .metric-unit { font-size: 14px; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+  .input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+  .input-row > * { min-width: 0; }
+  .metric-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 15px; -webkit-appearance: none;
+    width: 100%;
+    max-width: 100%;
+  }
+  .metric-input:focus { outline: none; border-color: var(--accent); }
+  .metric-input::placeholder { color: var(--muted); }
+  .save-btn {
+    background: var(--accent); color: #000; border: none;
+    border-radius: 10px; padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    width: auto;
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 480px) {
+    .input-row { grid-template-columns: 1fr; }
+    .save-btn { width: 100%; }
+  }
+
+  /* BMI */
+  .bmi-box {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px 20px; margin: 0 20px 16px;
+  }
+  .bmi-num { font-family: 'Bebas Neue', sans-serif; font-size: 42px; line-height: 1; }
+  .bmi-lbl { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .bmi-cat { font-size: 14px; font-weight: 600; margin-top: 4px; }
+
+  /* WEIGHT HISTORY */
+  .weight-section { padding: 0 20px; }
+  .weight-entry {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 0; border-bottom: 1px solid var(--border);
+  }
+  .weight-entry:last-child { border-bottom: none; }
+  .w-date { font-size: 13px; color: var(--muted); }
+  .w-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
+  .w-diff { font-size: 12px; font-weight: 600; }
+  .w-diff.up { color: #ff6b6b; }
+  .w-diff.dn { color: var(--done-border); }
+  .w-del {
+    margin-left: 8px; border: 1px solid rgba(255,80,80,0.35); background: transparent;
+    color: rgba(255,120,120,0.95); border-radius: 8px; padding: 4px 8px; font-size: 11px; cursor: pointer;
+  }
+
+  /* PROGRAM */
+  .program-section { padding: 0 20px; margin-top: 8px; }
+  .program-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px;
+  }
+  .program-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .program-btn {
+    width: 100%; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); border-radius: 12px; padding: 12px 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer;
+  }
+  .program-btn.primary { background: var(--accent); border-color: var(--accent); color: #000; }
+  .program-btn.danger { border-color: rgba(255,80,80,0.35); color: rgba(255,120,120,0.95); }
+  .program-note { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.55; }
+  .codebox {
+    width: 100%; min-height: 120px; resize: vertical;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 12px; line-height: 1.5;
+  }
+  .codebox:focus { outline: none; border-color: var(--accent); }
+  .template-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .template-item:active { opacity: 0.85; }
+  .template-name { font-weight: 700; font-size: 14px; }
+  .template-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .template-pill { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #000; background: var(--accent);
+    padding: 4px 8px; border-radius: 999px; font-weight: 800; white-space: nowrap;
+  }
+
+  /* TEAM */
+  .team-section { padding: 0 20px; margin-top: 8px; }
+  .user-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s;
+  }
+  .user-item.me { border-color: var(--accent); }
+  .user-item:active { opacity: 0.8; }
+  .u-avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: #000;
+    overflow: hidden;
+  }
+  .u-info { flex: 1; }
+  .u-name { font-size: 15px; font-weight: 600; }
+  .u-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .active-badge { font-size: 10px; color: var(--accent); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+  .add-user-btn {
+    width: 100%; background: transparent; border: 1px dashed var(--border);
+    border-radius: 14px; padding: 14px; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer;
+    text-align: center; transition: all 0.2s;
+  }
+  .add-user-btn:active { border-color: var(--accent); color: var(--accent); }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); left: 50%;
+    transform: translate(-50%, calc(100% + 24px));
+    opacity: 0;
+    background: var(--done-border); color: #000;
+    font-weight: 600; font-size: 14px;
+    padding: 12px 24px; border-radius: 30px;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+    z-index: 999; white-space: nowrap;
+    pointer-events: none;
+  }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+  /* MODALS */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88); z-index: 500;
+    align-items: flex-end; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .sheet {
+    background: var(--card); border-radius: 24px 24px 0 0;
+    width: 100%; max-width: 430px; padding-bottom: 48px;
+    animation: slideUp 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+    max-height: 90vh; overflow-y: auto;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
+  .sheet-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 1px; padding: 16px 20px 4px; color: var(--accent); }
+  .sheet-sub { font-size: 13px; color: var(--muted); padding: 0 20px 14px; }
+  .sheet-body { padding: 0 20px; }
+  .sheet-footer { padding: 0 20px; }
+  .sheet-btn {
+    width: 100%; border: none; border-radius: 12px; padding: 14px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
+    cursor: pointer; margin-top: 10px;
+  }
+  .sheet-btn.primary { background: var(--accent); color: #000; }
+  .sheet-btn.secondary { background: var(--border); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; letter-spacing: 0; }
+
+  /* VIDEO MODAL */
+  .video-wrap { background: #111; display: flex; align-items: center; justify-content: center; min-height: 200px; position: relative; }
+  .video-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; }
+  .tip-box { margin: 14px 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; font-size: 13px; line-height: 1.6; color: #ccc; }
+  .tip-title { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+
+  /* FORM */
+  .form-group { margin-bottom: 12px; }
+  .form-label { display: block; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .form-input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 15px; -webkit-appearance: none;
+  }
+  .form-input:focus { outline: none; border-color: var(--accent); }
+  .form-input::placeholder { color: var(--muted); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* EXERCISE POOL */
+  .pool-cat-row {
+    display: flex; gap: 8px; overflow-x: auto;
+    scrollbar-width: none; margin-bottom: 10px;
+  }
+  .pool-cat-row::-webkit-scrollbar { display: none; }
+  .pool-cat-btn {
+    flex-shrink: 0; border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); border-radius: 999px; padding: 7px 12px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .pool-cat-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+  .pool-list { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px; }
+  .pool-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; cursor: pointer;
+  }
+  .pool-item.picked { border-color: var(--accent); }
+  .pool-item:active { opacity: 0.85; }
+  .pool-item-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .pool-item-name { font-size: 14px; font-weight: 700; }
+  .pool-item-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .pool-item-pill {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: #000; background: var(--accent); border-radius: 999px; padding: 4px 7px;
+    font-weight: 800; white-space: nowrap;
+  }
+  .pool-choice-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; margin-bottom: 10px; cursor: pointer;
+  }
+  .pool-choice-card:active { opacity: 0.85; }
+  .pool-choice-title { font-size: 15px; font-weight: 800; }
+  .pool-choice-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* COLOR PICKER */
+  .color-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .color-dot {
+    width: 34px; height: 34px; border-radius: 50%;
+    cursor: pointer; transition: all 0.2s; border: 3px solid transparent;
+  }
+  .color-dot.picked { border-color: white; transform: scale(1.15); }
+
+  /* NAME EDIT */
+  .name-edit-input {
+    background: var(--surface); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 6px 10px; color: var(--text);
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; width: 100%; letter-spacing: 1px;
+  }
+  .name-edit-input:focus { outline: none; }
+  .name-edit-row { display: flex; gap: 8px; margin-top: 8px; }
+  .name-edit-row button {
+    padding: 6px 14px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .name-edit-row .confirm { background: var(--accent); color: #000; }
+  .name-edit-row .cancel { background: var(--border); color: var(--text); }
+
+  /* INTERACTION POLISH */
+  button { -webkit-tap-highlight-color: transparent; }
+  .week-btn, .day-tab, .nav-btn, .user-pill, .exercise-card, .add-ex-btn, .complete-btn,
+  .sheet-btn, .program-btn, .save-btn, .edit-name-btn, .template-item, .user-item, .add-user-btn,
+  .pool-choice-card, .pool-item, .w-del {
+    transition:
+      transform var(--anim-fast),
+      box-shadow var(--anim-mid),
+      background-color var(--anim-mid),
+      border-color var(--anim-mid),
+      color var(--anim-mid),
+      opacity var(--anim-fast);
+    will-change: transform;
+  }
+  .week-btn:active, .day-tab:active, .nav-btn:active, .user-pill:active, .exercise-card:active,
+  .add-ex-btn:active, .complete-btn:active, .sheet-btn:active, .program-btn:active, .save-btn:active,
+  .edit-name-btn:active, .template-item:active, .user-item:active, .add-user-btn:active,
+  .pool-choice-card:active, .pool-item:active, .w-del:active {
+    transform: translateY(1px) scale(0.985);
+  }
+  .week-btn:focus-visible, .day-tab:focus-visible, .nav-btn:focus-visible, .user-pill:focus-visible,
+  .add-ex-btn:focus-visible, .complete-btn:focus-visible, .sheet-btn:focus-visible, .program-btn:focus-visible,
+  .save-btn:focus-visible, .edit-name-btn:focus-visible, .template-item:focus-visible, .user-item:focus-visible,
+  .add-user-btn:focus-visible, .pool-choice-card:focus-visible, .pool-item:focus-visible, .w-del:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(232,255,71,0.28), 0 0 18px rgba(232,255,71,0.2);
+  }
+
+  .complete-btn, .sheet-btn.primary, .program-btn.primary, .save-btn {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .complete-btn::after, .sheet-btn.primary::after, .program-btn.primary::after, .save-btn::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.34) 50%, transparent 65%);
+    transform: translateX(-125%);
+    transition: transform 0.7s ease;
+    pointer-events: none;
+  }
+  .complete-btn:hover::after, .sheet-btn.primary:hover::after, .program-btn.primary:hover::after, .save-btn:hover::after {
+    transform: translateX(125%);
+  }
+</style>
+</head>
+<body>
+<div class="ambient-bg" aria-hidden="true">
+  <div class="ambient-beam beam-a"></div>
+  <div class="ambient-beam beam-b"></div>
+</div>
+
+<!-- ====== WORKOUT PAGE ====== -->
+<div id="page-workout" class="page active">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="app-title">BUDDYG</div>
+        <div class="date-text" id="dateText"></div>
+      </div>
+      <button class="user-pill" onclick="openSwitcher()">
+        <div class="user-avatar" id="hAvatar"></div>
+        <span class="user-pill-name" id="hName"></span>
+      </button>
+    </div>
+    <div class="week-nav" id="weekNav"></div>
+  </div>
+  <div class="stats-bar" id="statsBar"></div>
+  <div class="day-tabs" id="dayTabs"></div>
+  <div class="divider"></div>
+  <div id="workoutContent"></div>
+</div>
+
+<!-- ====== PROFILE PAGE ====== -->
+<div id="page-profile" class="page">
+  <div class="profile-header">
+    <div class="profile-header-title">PROFİL</div>
+  </div>
+  <div id="profileContent"></div>
+</div>
+
+<!-- ====== BOTTOM NAV ====== -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-workout" onclick="switchPage('workout')">
+    <span class="nav-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 10v4"></path>
+        <path d="M6 8v8"></path>
+        <path d="M18 8v8"></path>
+        <path d="M21 10v4"></path>
+        <path d="M8 12h8"></path>
+      </svg>
+    </span>
+    <span class="nav-label">Antrenman</span>
+  </button>
+  <button class="nav-btn" id="nav-profile" onclick="switchPage('profile')">
+    <span class="nav-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="3.2"></circle>
+        <path d="M5 19c1.6-3 4-4.5 7-4.5s5.4 1.5 7 4.5"></path>
+      </svg>
+    </span>
+    <span class="nav-label">Profil</span>
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+<input id="profilePhotoInput" type="file" accept="image/*" style="display:none" onchange="onProfilePhotoSelected(event)">
+
+<!-- ====== VIDEO MODAL ====== -->
+<div class="overlay" id="videoOverlay" onclick="closeVideo(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="vTitle"></div>
+    <div class="sheet-sub" id="vMeta"></div>
+    <div class="video-wrap">
+      <div class="video-loading" id="vLoading">Yükleniyor...</div>
+      <iframe id="vFrame" src="" title="Egzersiz videosu" style="display:none;width:100%;max-height:320px;height:320px;border:0;"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen></iframe>
+      <img id="vImg" src="" alt="" style="display:none;width:100%;max-height:260px;object-fit:cover;"
+        onload="document.getElementById('vLoading').style.display='none';this.style.display='block';"
+        onerror="document.getElementById('vLoading').textContent='Video bulunamadı';">
+    </div>
+    <div class="tip-box">
+      <div class="tip-title">Teknik İpucu</div>
+      <div id="vTip"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn secondary" onclick="closeVideoModal()">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== ADD EXERCISE MODAL ====== -->
+<div class="overlay" id="addExOverlay" onclick="closeAddEx(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">EGZERSİZ EKLE</div>
+    <div class="sheet-sub" id="addExSub">Hazır havuzdan seç veya kendi hareketini yaz</div>
+    <div class="sheet-body">
+      <div id="addExStepChoice">
+        <div class="pool-choice-card" onclick="startPoolMode()">
+          <div class="pool-choice-title">Hazır Egzersiz Havuzu</div>
+          <div class="pool-choice-sub">Kategori seç, hareketi hızlıca doldur</div>
+        </div>
+        <div class="pool-choice-card" onclick="startManualMode()">
+          <div class="pool-choice-title">Kendim Yazacağım</div>
+          <div class="pool-choice-sub">Hareket adı, set ve tekrar bilgisini manuel gir</div>
+        </div>
+      </div>
+
+      <div id="addExStepPool" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Kategori</label>
+          <div class="pool-cat-row" id="poolCats"></div>
+          <div class="pool-list" id="poolList"></div>
+        </div>
+        <div class="sheet-footer" style="padding:0;">
+          <button class="sheet-btn primary" onclick="continueFromPool()">İLERLE</button>
+          <button class="sheet-btn secondary" onclick="showAddExStep('choice')">Geri</button>
+        </div>
+      </div>
+
+      <div id="addExStepForm" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Hareket Adı</label>
+          <input class="form-input" id="exName" type="text" placeholder="örn. Cable Fly">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Set Sayısı</label>
+            <input class="form-input" id="exSets" type="number" inputmode="numeric" placeholder="3">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tekrar</label>
+            <input class="form-input" id="exReps" type="text" placeholder="12">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teknik Notu (opsiyonel)</label>
+          <input class="form-input" id="exTip" type="text" placeholder="Yavaş ve kontrollü yap...">
+        </div>
+        <div class="sheet-footer" style="padding:0;">
+          <button class="sheet-btn primary" onclick="saveExercise()">EKLE</button>
+          <button class="sheet-btn secondary" onclick="showAddExStep('choice')">Geri</button>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-footer"><button class="sheet-btn secondary" onclick="document.getElementById('addExOverlay').classList.remove('open')">Kapat</button></div>
+  </div>
+</div>
+
+<!-- ====== USER SWITCHER MODAL ====== -->
+<div class="overlay" id="switcherOverlay" onclick="closeSwitcher(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">KULLANICI SEÇ</div>
+    <div id="switcherList" style="padding:8px 20px;"></div>
+    <div class="sheet-footer">
+      <button class="sheet-btn primary" onclick="openAddUser()">+ YENİ KULLANICI</button>
+      <button class="sheet-btn secondary" onclick="document.getElementById('switcherOverlay').classList.remove('open')">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== FIRST LAUNCH MODAL ====== -->
+<div class="overlay open" id="firstLaunchOverlay" style="display:none;align-items:center;justify-content:center;">
+  <div class="sheet" style="border-radius:24px;max-width:360px;margin:20px;">
+    <div style="padding:32px 24px 8px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">🏋️</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);">HOŞ GELDİN</div>
+      <div style="font-size:14px;color:var(--muted);margin-top:6px;margin-bottom:20px;">Başlamak için bir isim gir</div>
+      <input class="form-input" id="firstLaunchName" type="text" placeholder="İsmin..." maxlength="20"
+        style="text-align:center;font-size:18px;padding:14px;"
+        onkeydown="if(event.key==='Enter')firstLaunchSave()">
+      <div class="color-row" id="firstLaunchColors" style="justify-content:center;margin-top:16px;margin-bottom:8px;"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn primary" onclick="firstLaunchSave()">BAŞLA</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== AUTH MODAL ====== -->
+<div class="overlay" id="authOverlay" style="display:none;align-items:center;justify-content:center;">
+  <div class="sheet" style="border-radius:24px;max-width:360px;margin:20px;">
+    <div style="padding:30px 24px 8px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:10px;">🔐</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);">HESAP GİRİŞİ</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:16px;">Verilerini bulutta tutmak için giriş yap</div>
+      <input class="form-input" id="authEmail" type="email" placeholder="E-posta" style="margin-bottom:10px;">
+      <input class="form-input" id="authPass" type="password" placeholder="Şifre" onkeydown="if(event.key==='Enter')authSignIn()">
+      <div id="authMsg" style="font-size:12px;color:var(--muted);margin-top:10px;min-height:18px;"></div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn primary" onclick="authSignIn()">GİRİŞ YAP</button>
+      <button class="sheet-btn secondary" onclick="authSignUp()">KAYIT OL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== ADD USER MODAL ====== -->
+<div class="overlay" id="addUserOverlay" onclick="closeAddUser(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">YENİ KULLANICI</div>
+    <div class="sheet-sub">Arkadaşını ekle</div>
+    <div class="sheet-body">
+      <div class="form-group">
+        <label class="form-label">İsim</label>
+        <input class="form-input" id="newUserName" type="text" placeholder="İsim gir...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Renk</label>
+        <div class="color-row" id="colorRow"></div>
+      </div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn primary" onclick="saveUser()">OLUŞTUR</button>
+      <button class="sheet-btn secondary" onclick="document.getElementById('addUserOverlay').classList.remove('open')">İptal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== PROGRAM TEMPLATES MODAL ====== -->
+<div class="overlay" id="programOverlay" onclick="closeProgram(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">PROGRAM ŞABLONU</div>
+    <div class="sheet-sub">Başlamak için bir şablon seç. Bu işlem mevcut programını sıfırlar.</div>
+    <div class="sheet-body" id="programList"></div>
+    <div class="sheet-footer">
+      <button class="sheet-btn secondary" onclick="document.getElementById('programOverlay').classList.remove('open')">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== PROGRAM IMPORT MODAL ====== -->
+<div class="overlay" id="importOverlay" onclick="closeImport(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">PROGRAM İÇE AKTAR</div>
+    <div class="sheet-sub">Kodunu yapıştır ve yükle. Bu işlem mevcut programını sıfırlar.</div>
+    <div class="sheet-body">
+      <textarea class="codebox" id="importBox" placeholder="Buraya program kodunu yapıştır..."></textarea>
+      <div class="program-note">İpucu: Arkadaşın sana bir kod yolladıysa aynen yapıştır. JSON ya da tek satır kod olabilir.</div>
+    </div>
+    <div class="sheet-footer">
+      <button class="sheet-btn primary" onclick="importProgram()">YÜKLE</button>
+      <button class="sheet-btn secondary" onclick="document.getElementById('importOverlay').classList.remove('open')">İptal</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const COLORS = ['#e8ff47','#47e8ff','#ff6b6b','#ff9a3c','#3cffb8','#c97fff','#ff47b0','#ffcb47'];
+
+const TIPS = {
+  "Machine Chest Press": "Sırtını koltuğa tam yasla. Kolları göğüs hizasında tut, dirsekler 90 derece. İterken nefes ver, geri alırken al.",
+  "İncline Dumbbell Press": "Sırt 30-45 derece açıda. Dumbbell'ları göğüs yanında tut, yukarı iterken hafifçe birbirine yaklaştır.",
+  "Shoulder Press": "Dirsekler 90 dereceden başla. Kolu tam açmadan hafif bük. Beli aşırı arkaya verme.",
+  "Lateral Raise": "Hafif öne eğik kollarla yan kaldır. Omuz hizasına kadar çık. Sallamadan, kontrollü in.",
+  "Tricep Pushdown": "Dirsekler sabit, vücudun yanında. Sadece ön kol hareket etsin. Tam aşağı it, 1 sn tut.",
+  "Face Pull": "Kablo göz hizasında. İki eli kulaklarına doğru çek, dirsekler dışarı. Omuz sağlığı için kritik.",
+  "Squat": "Ayaklar omuz genişliğinde, hafif dışa dönük. Diz parmak yönünde gitsin. Göğüs dik, bel düz.",
+  "Leg Press": "Ayak orta yükseklikte. Dizler tam kilitlenmesin. Yavaş in, güçlü it. Bel platformdan kalkmasın.",
+  "Leg Extension": "Tam yukarı aç, 1 saniye tut, yavaş in. Kalçalar koltuğa yapışık kalsın.",
+  "Romanian Deadlift": "Bel düz, hafif diz bükük. Kalçadan öne eğil. Bar bacağa yakın kalsın.",
+  "Leg Curl": "Tam in, tam kıv. Kalçaları makineye bas. Arka bacak kasıyla çek.",
+  "Calf Raise": "Tam aşağı in, iyice ger. Yukarıda 1 saniye dur. Tam hareket aralığı şart.",
+  "Barbell Row": "Sırt düz, hafif öne eğik. Barı karın bölgesine çek. Omuz küreklerini birbirine yaklaştır.",
+  "Lat Pulldown": "Geniş tutuş. Göğse çekerken hafif arkaya yaslan. Omuz küreklerini aşağı sıkıştır.",
+  "Cable Row (tek kol)": "Tek elle çekerken gövdeyi döndürme. Dirsek geride kalacak. Sırt kasını hisset.",
+  "Bicep Curl (bar)": "Dirsekler sabit, vücuda yapışık. Sallamadan kaldır. Tam yukarı, yavaş aşağı.",
+  "Hammer Curl": "Başparmak yukarı, nötr tutuş. Dirsek sabit. Hem ön kol hem bicep çalışır.",
+  "Bulgarian Split Squat": "Arka ayak bench üzerinde. Ön ayak yeterince önde. Dik in, diz öne geçmesin.",
+  "Hip Thrust": "Omuz kürekler bench üzerinde. Kalçayı tam yukarı kaldır, 1 sn sıkıştır."
+};
+
+const VIDEOS = {
+  "Machine Chest Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-machine-chest-press-front.mp4",
+  "İncline Dumbbell Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-incline-bench-press-front.mp4",
+  "Flat Dumbbell Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-bench-press-front.mp4",
+  "Shoulder Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-shoulder-press-front.mp4",
+  "Lateral Raise": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-lateral-raise-front.mp4",
+  "Tricep Pushdown": "https://media.musclewiki.com/media/uploads/videos/branded/male-cables-tricep-pushdown-front.mp4",
+  "Face Pull": "https://media.musclewiki.com/media/uploads/videos/branded/male-cables-face-pull-front.mp4",
+  "Squat": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-squat-front.mp4",
+  "Leg Press": "https://media.musclewiki.com/media/uploads/videos/branded/male-machine-leg-press-front.mp4",
+  "Leg Extension": "https://media.musclewiki.com/media/uploads/videos/branded/male-machine-leg-extension-front.mp4",
+  "Romanian Deadlift": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-romanian-deadlift-front.mp4",
+  "Leg Curl": "https://media.musclewiki.com/media/uploads/videos/branded/male-machine-seated-leg-curl-front.mp4",
+  "Calf Raise": "https://media.musclewiki.com/media/uploads/videos/branded/male-machine-calf-raise-front.mp4",
+  "Barbell Row": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-bent-over-row-front.mp4",
+  "Lat Pulldown": "https://media.musclewiki.com/media/uploads/videos/branded/male-cables-lat-pulldown-front.mp4",
+  "Cable Row (tek kol)": "https://media.musclewiki.com/media/uploads/videos/branded/male-cables-seated-cable-row-front.mp4",
+  "Bicep Curl (bar)": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-curl-front.mp4",
+  "Hammer Curl": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-hammer-curl-front.mp4",
+  "Concentration Curl": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-concentration-curl-front.mp4",
+  "Bulgarian Split Squat": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-bulgarian-split-squat-front.mp4",
+  "Hip Thrust": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-hip-thrust-front.mp4"
+};
+
+function getVideoUrl(name) {
+  if (VIDEOS[name]) return VIDEOS[name];
+  const n = (name || '').toLowerCase();
+
+  if (n.includes('crossover') || n.includes('fly') || n.includes('pec') || n.includes('dip') || n.includes('push-up')) {
+    return VIDEOS['Machine Chest Press'];
+  }
+  if (n.includes('lat') || n.includes('row') || n.includes('pulldown') || n.includes('pullover') || n.includes('deadlift')) {
+    return VIDEOS['Lat Pulldown'];
+  }
+  if (n.includes('shoulder') || n.includes('rear delt') || n.includes('upright') || n.includes('arnold') || n.includes('lateral')) {
+    return VIDEOS['Shoulder Press'];
+  }
+  if (n.includes('squat') || n.includes('lunge') || n.includes('leg') || n.includes('calf') || n.includes('thrust')) {
+    return VIDEOS['Squat'];
+  }
+  if (n.includes('tricep') || n.includes('pushdown') || n.includes('extension') || n.includes('kickback') || n.includes('skull') || n.includes('close grip') || n.includes('bench dip')) {
+    return VIDEOS['Tricep Pushdown'];
+  }
+  if (n.includes('curl') || n.includes('bicep') || n.includes('preacher') || n.includes('concentration')) {
+    return VIDEOS['Bicep Curl (bar)'];
+  }
+  return '';
+}
+
+let wgerMediaIndex = null;
+function normExName(v) {
+  return (v || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function ensureWgerMediaIndex() {
+  if (wgerMediaIndex) return wgerMediaIndex;
+  try {
+    const r = await fetch('https://wger.de/api/v2/exerciseinfo/?limit=1000');
+    const data = await r.json();
+    const idx = {};
+    for (const ex of (data.results || [])) {
+      let media = '';
+      if (ex.videos && ex.videos.length && ex.videos[0].video) media = ex.videos[0].video;
+      else if (ex.images && ex.images.length && ex.images[0].image) media = ex.images[0].image;
+      if (!media) continue;
+      if (media.startsWith('/')) media = 'https://wger.de' + media;
+
+      for (const t of (ex.translations || [])) {
+        const n = normExName(t.name);
+        if (!n) continue;
+        if (!idx[n]) idx[n] = media;
+      }
+    }
+    wgerMediaIndex = idx;
+  } catch (e) {
+    wgerMediaIndex = {};
+  }
+  return wgerMediaIndex;
+}
+
+async function getWgerMediaUrl(name) {
+  const idx = await ensureWgerMediaIndex();
+  const key = normExName(name);
+  if (idx[key]) return idx[key];
+
+  // loose fallback by significant keyword match
+  const keys = Object.keys(idx);
+  const tokens = key.split(' ').filter(w => w.length > 2);
+  for (const tk of tokens) {
+    const hit = keys.find(k => k.includes(tk));
+    if (hit) return idx[hit];
+  }
+  return '';
+}
+
+const EXERCISE_LIBRARY = {
+  gogus: {
+    label: 'Göğüs',
+    items: [
+      { name: 'Machine Chest Press', sets: 4, reps: '10' },
+      { name: 'İncline Dumbbell Press', sets: 3, reps: '10' },
+      { name: 'Flat Dumbbell Press', sets: 3, reps: '10' },
+      { name: 'Cable Crossover', sets: 3, reps: '12' },
+      { name: 'Cable Fly (High to Low)', sets: 3, reps: '12' },
+      { name: 'Cable Fly (Low to High)', sets: 3, reps: '12' },
+      { name: 'Pec Deck Fly', sets: 3, reps: '12' },
+      { name: 'Cable Fly', sets: 3, reps: '12' },
+      { name: 'Incline Cable Fly', sets: 3, reps: '12' },
+      { name: 'Chest Dip', sets: 3, reps: '8-12' },
+      { name: 'Push-Up', sets: 3, reps: 'Maks' }
+    ]
+  },
+  sirt: {
+    label: 'Sırt',
+    items: [
+      { name: 'Lat Pulldown', sets: 3, reps: '10' },
+      { name: 'Barbell Row', sets: 4, reps: '8' },
+      { name: 'Cable Row (tek kol)', sets: 3, reps: '10' },
+      { name: 'Seated Cable Row', sets: 3, reps: '10' },
+      { name: 'Close Grip Lat Pulldown', sets: 3, reps: '10' },
+      { name: 'Straight Arm Cable Pulldown', sets: 3, reps: '12' },
+      { name: 'Cable Pullover', sets: 3, reps: '12' },
+      { name: 'Single Arm Lat Pulldown', sets: 3, reps: '10' },
+      { name: 'Face Pull', sets: 3, reps: '15' },
+      { name: 'Deadlift', sets: 3, reps: '5' }
+    ]
+  },
+  omuz: {
+    label: 'Omuz',
+    items: [
+      { name: 'Shoulder Press', sets: 3, reps: '10' },
+      { name: 'Lateral Raise', sets: 3, reps: '15' },
+      { name: 'Cable Lateral Raise', sets: 3, reps: '12' },
+      { name: 'Cable Front Raise', sets: 3, reps: '12' },
+      { name: 'Cable Rear Delt Fly', sets: 3, reps: '12' },
+      { name: 'Rear Delt Fly', sets: 3, reps: '15' },
+      { name: 'Arnold Press', sets: 3, reps: '10' },
+      { name: 'Upright Row', sets: 3, reps: '12' },
+      { name: 'Face Pull', sets: 3, reps: '15' }
+    ]
+  },
+  bacak: {
+    label: 'Bacak',
+    items: [
+      { name: 'Squat', sets: 4, reps: '8' },
+      { name: 'Leg Press', sets: 3, reps: '12' },
+      { name: 'Romanian Deadlift', sets: 3, reps: '10' },
+      { name: 'Bulgarian Split Squat', sets: 3, reps: '10/taraf' },
+      { name: 'Leg Curl', sets: 3, reps: '12' },
+      { name: 'Leg Extension', sets: 3, reps: '15' },
+      { name: 'Walking Lunge', sets: 3, reps: '12/taraf' },
+      { name: 'Hip Thrust', sets: 3, reps: '12' },
+      { name: 'Calf Raise', sets: 4, reps: '15' }
+    ]
+  },
+  biceps: {
+    label: 'Biceps',
+    items: [
+      { name: 'Bicep Curl (bar)', sets: 3, reps: '12' },
+      { name: 'EZ Bar Curl', sets: 3, reps: '12' },
+      { name: 'Hammer Curl', sets: 3, reps: '12' },
+      { name: 'Incline Dumbbell Curl', sets: 3, reps: '12' },
+      { name: 'Cable Curl', sets: 3, reps: '12' },
+      { name: 'Cable Rope Hammer Curl', sets: 3, reps: '12' },
+      { name: 'Preacher Curl', sets: 3, reps: '10' },
+      { name: 'Concentration Curl', sets: 3, reps: '12' }
+    ]
+  },
+  triceps: {
+    label: 'Triceps',
+    items: [
+      { name: 'Tricep Pushdown', sets: 3, reps: '12' },
+      { name: 'Rope Pushdown', sets: 3, reps: '12' },
+      { name: 'Overhead Cable Extension', sets: 3, reps: '12' },
+      { name: 'Cable Kickback', sets: 3, reps: '12' },
+      { name: 'Single Arm Pushdown', sets: 3, reps: '12' },
+      { name: 'Skull Crusher', sets: 3, reps: '10' },
+      { name: 'Close Grip Bench Press', sets: 3, reps: '8-10' },
+      { name: 'Bench Dip', sets: 3, reps: 'Maks' }
+    ]
+  }
+};
+
+const BASE_PROGRAM = {
+  1: { name:"UPPER A", sub:"İtme Ağırlıklı", exercises:[
+    {name:"Machine Chest Press",sets:4,reps:"10"},
+    {name:"İncline Dumbbell Press",sets:3,reps:"10"},
+    {name:"Shoulder Press",sets:3,reps:"10"},
+    {name:"Lateral Raise",sets:3,reps:"15"},
+    {name:"Tricep Pushdown",sets:3,reps:"12"},
+    {name:"Face Pull",sets:3,reps:"15"}
+  ]},
+  2: { name:"LOWER A", sub:"Quad Ağırlıklı", exercises:[
+    {name:"Squat",sets:4,reps:"8"},
+    {name:"Leg Press",sets:3,reps:"12"},
+    {name:"Leg Extension",sets:3,reps:"15"},
+    {name:"Romanian Deadlift",sets:3,reps:"10"},
+    {name:"Leg Curl",sets:3,reps:"12"},
+    {name:"Calf Raise",sets:4,reps:"15"}
+  ]},
+  3: null,
+  4: { name:"UPPER B", sub:"Çekme Ağırlıklı", exercises:[
+    {name:"Barbell Row",sets:4,reps:"8"},
+    {name:"Lat Pulldown",sets:3,reps:"10"},
+    {name:"Cable Row (tek kol)",sets:3,reps:"10"},
+    {name:"Face Pull",sets:3,reps:"15"},
+    {name:"Bicep Curl (bar)",sets:3,reps:"12"},
+    {name:"Hammer Curl",sets:3,reps:"12"}
+  ]},
+  5: { name:"LOWER B", sub:"Posterior Chain", exercises:[
+    {name:"Romanian Deadlift",sets:4,reps:"8"},
+    {name:"Bulgarian Split Squat",sets:3,reps:"10/taraf"},
+    {name:"Leg Curl",sets:3,reps:"12"},
+    {name:"Hip Thrust",sets:3,reps:"12"},
+    {name:"Leg Extension",sets:3,reps:"12"},
+    {name:"Calf Raise",sets:4,reps:"15"}
+  ]},
+  6: null,
+  7: null
+};
+
+// ============================================================
+// PROGRAM TEMPLATES (for friends)
+// ============================================================
+const PROGRAM_TEMPLATES = {
+  empty: {
+    title: 'Boş Başla',
+    sub: 'Her şeyi sen ekle',
+    badge: 'EMPTY',
+    dayNames: {},
+    custom: {}
+  },
+  ul4: {
+    title: 'Upper / Lower (4 Gün)',
+    sub: 'Gün 1-2-4-5 aktif',
+    badge: 'UL-4',
+    // Uses the older base program as a starter template
+    build: () => {
+      const dayNames = {};
+      const custom = {};
+      [1,2,4,5].forEach(d => {
+        const bp = BASE_PROGRAM[d];
+        if (!bp) return;
+        dayNames[d] = { name: bp.name, sub: bp.sub };
+        custom[d] = (bp.exercises || []).map(e => ({
+          name: e.name,
+          sets: e.sets,
+          reps: e.reps,
+          tip: TIPS[e.name] || '',
+          isCustom: true
+        }));
+      });
+      return { dayNames, custom };
+    }
+  },
+  fb3: {
+    title: 'Full Body (3 Gün)',
+    sub: 'Gün 1-3-5 aktif',
+    badge: 'FB-3',
+    build: () => {
+      const dayNames = {
+        1: { name: 'FULL BODY A', sub: 'Tüm Vücut · Temel' },
+        3: { name: 'FULL BODY B', sub: 'Tüm Vücut · Hacim' },
+        5: { name: 'FULL BODY C', sub: 'Tüm Vücut · Güç' }
+      };
+      const custom = {
+        1: [
+          { name:'Squat', sets:4, reps:'8', tip: TIPS['Squat']||'', isCustom:true },
+          { name:'Machine Chest Press', sets:3, reps:'10', tip: TIPS['Machine Chest Press']||'', isCustom:true },
+          { name:'Lat Pulldown', sets:3, reps:'10', tip: TIPS['Lat Pulldown']||'', isCustom:true },
+          { name:'Romanian Deadlift', sets:3, reps:'10', tip: TIPS['Romanian Deadlift']||'', isCustom:true },
+          { name:'Lateral Raise', sets:3, reps:'15', tip: TIPS['Lateral Raise']||'', isCustom:true },
+          { name:'Tricep Pushdown', sets:3, reps:'12', tip: TIPS['Tricep Pushdown']||'', isCustom:true }
+        ],
+        3: [
+          { name:'Leg Press', sets:4, reps:'12', tip: TIPS['Leg Press']||'', isCustom:true },
+          { name:'İncline Dumbbell Press', sets:3, reps:'10', tip: TIPS['İncline Dumbbell Press']||'', isCustom:true },
+          { name:'Barbell Row', sets:4, reps:'8', tip: TIPS['Barbell Row']||'', isCustom:true },
+          { name:'Leg Curl', sets:3, reps:'12', tip: TIPS['Leg Curl']||'', isCustom:true },
+          { name:'Bicep Curl (bar)', sets:3, reps:'12', tip: TIPS['Bicep Curl (bar)']||'', isCustom:true },
+          { name:'Face Pull', sets:3, reps:'15', tip: TIPS['Face Pull']||'', isCustom:true }
+        ],
+        5: [
+          { name:'Romanian Deadlift', sets:4, reps:'8', tip: TIPS['Romanian Deadlift']||'', isCustom:true },
+          { name:'Shoulder Press', sets:3, reps:'10', tip: TIPS['Shoulder Press']||'', isCustom:true },
+          { name:'Cable Row (tek kol)', sets:3, reps:'10', tip: TIPS['Cable Row (tek kol)']||'', isCustom:true },
+          { name:'Leg Extension', sets:3, reps:'15', tip: TIPS['Leg Extension']||'', isCustom:true },
+          { name:'Hammer Curl', sets:3, reps:'12', tip: TIPS['Hammer Curl']||'', isCustom:true },
+          { name:'Calf Raise', sets:4, reps:'15', tip: TIPS['Calf Raise']||'', isCustom:true }
+        ]
+      };
+      return { dayNames, custom };
+    }
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+const SUPABASE_URL = 'https://bydnxzmdvzqqhbijroei.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5ZG54em1kdnpxcWhiaWpyb2VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NDIwMDQsImV4cCI6MjA4ODExODAwNH0.JuDGeEewtiabU3-ItZ-zPlYUc8inv5ZAC84JCWv6REg';
+const CLOUD_ENABLED = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+
+let sb = null;
+let sbUser = null;
+let cloudBooted = false;
+let saveTimer = null;
+let userDataMap = {};
+
+function defaultUserData() {
+  return {
+    currentWeek: 1, currentDay: 1, weeks: {},
+    metrics: { height: null, weightLog: [] },
+    custom: {}, dayNames: {},
+    weekPrograms: {}
+  };
+}
+
+function loadProfiles() {
+  return JSON.parse(localStorage.getItem('gym_profiles') || 'null') || { currentId: null, users: [] };
+}
+function saveProfiles() {
+  localStorage.setItem('gym_profiles', JSON.stringify(profiles));
+  queueCloudSave();
+}
+function loadUserData(uid) {
+  if (!uid) return defaultUserData();
+  if (userDataMap[uid]) return JSON.parse(JSON.stringify(userDataMap[uid]));
+  const local = JSON.parse(localStorage.getItem('gym_' + uid) || 'null') || defaultUserData();
+  userDataMap[uid] = JSON.parse(JSON.stringify(local));
+  return local;
+}
+function saveData() {
+  if (profiles.currentId) {
+    userDataMap[profiles.currentId] = JSON.parse(JSON.stringify(st));
+    localStorage.setItem('gym_' + profiles.currentId, JSON.stringify(st));
+  }
+  queueCloudSave();
+}
+
+function saveCloudCache(payload) {
+  if (!sbUser) return;
+  localStorage.setItem('gym_cloud_cache_' + sbUser.id, JSON.stringify(payload));
+}
+function loadCloudCache(uid) {
+  return JSON.parse(localStorage.getItem('gym_cloud_cache_' + uid) || 'null');
+}
+
+function normalizeStatePayload(payload) {
+  const safe = payload || {};
+  const p = safe.profiles || { currentId: null, users: [] };
+  const ud = safe.userDataMap || {};
+  if (!p.currentId && p.users.length) p.currentId = p.users[0].id;
+  return { profiles: p, userDataMap: ud };
+}
+function collectStatePayload() {
+  const map = JSON.parse(JSON.stringify(userDataMap || {}));
+  if (profiles.currentId) map[profiles.currentId] = JSON.parse(JSON.stringify(st));
+  return { profiles: JSON.parse(JSON.stringify(profiles)), userDataMap: map };
+}
+function applyStatePayload(payload) {
+  const norm = normalizeStatePayload(payload);
+  profiles = norm.profiles;
+  userDataMap = norm.userDataMap;
+  if (!profiles.currentId && profiles.users.length) profiles.currentId = profiles.users[0].id;
+  st = loadUserData(profiles.currentId);
+  saveProfiles();
+}
+
+function queueCloudSave() {
+  if (!cloudBooted || !sb || !sbUser) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { flushCloudSave(); }, 500);
+}
+async function flushCloudSave() {
+  if (!cloudBooted || !sb || !sbUser) return;
+  const payload = collectStatePayload();
+  saveCloudCache(payload);
+  const { error } = await sb.from('gym_user_data').upsert({
+    user_id: sbUser.id,
+    payload,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  if (error) console.error('Cloud save error:', error.message);
+}
+
+let profiles = loadProfiles();
+if (!profiles.currentId && profiles.users.length) {
+  profiles.currentId = profiles.users[0].id; saveProfiles();
+}
+let st = loadUserData(profiles.currentId);
+
+function me() { return profiles.users.find(u => u.id === profiles.currentId); }
+function initials(name) { return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2); }
+function renderAvatarElement(el, u) {
+  if (!el || !u) return;
+  if (u.photo) {
+    el.style.background = 'transparent';
+    el.innerHTML = `<img src="${u.photo}" alt="${u.name}" class="avatar-img">`;
+  } else {
+    el.innerHTML = '';
+    el.textContent = initials(u.name);
+    el.style.background = u.color;
+  }
+}
+
+function switchUser(uid) {
+  saveData();
+  profiles.currentId = uid;
+  saveProfiles();
+  st = loadUserData(uid);
+  setAccent(me().color);
+  document.getElementById('switcherOverlay').classList.remove('open');
+  render();
+}
+
+function setAccent(c) { document.documentElement.style.setProperty('--accent', c); }
+
+function pickProfilePhoto() {
+  const inp = document.getElementById('profilePhotoInput');
+  if (!inp) return;
+  inp.click();
+}
+
+function onProfilePhotoSelected(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('Lütfen bir görsel seç'); return; }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxSide = 360;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { toast('Görsel işlenemedi'); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      const photoData = canvas.toDataURL('image/jpeg', 0.84);
+
+      const u = me();
+      if (!u) return;
+      u.photo = photoData;
+      try {
+        saveProfiles();
+      } catch (_) {
+        toast('Fotoğraf büyük, daha küçük bir görsel seç');
+        return;
+      }
+      renderHeader();
+      if (document.getElementById('page-profile')?.classList.contains('active')) renderProfile();
+      toast('✓ Profil fotoğrafı güncellendi');
+    };
+    img.onerror = () => toast('Görsel okunamadı');
+    img.src = String(reader.result || '');
+  };
+  reader.onerror = () => toast('Görsel okunamadı');
+  reader.readAsDataURL(file);
+}
+
+function setAuthMsg(msg, isErr) {
+  const el = document.getElementById('authMsg');
+  if (!el) return;
+  el.style.color = isErr ? '#ff8b8b' : 'var(--muted)';
+  el.textContent = msg;
+}
+function showAuthOverlay() {
+  const ov = document.getElementById('authOverlay');
+  ov.style.display = 'flex';
+  ov.classList.add('open');
+}
+function hideAuthOverlay() {
+  const ov = document.getElementById('authOverlay');
+  ov.classList.remove('open');
+  ov.style.display = 'none';
+}
+async function authSignIn() {
+  if (!sb) return;
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  if (!email || !pass) { setAuthMsg('E-posta ve şifre gerekli.', true); return; }
+  setAuthMsg('Giriş yapılıyor...', false);
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { setAuthMsg(error.message, true); return; }
+  setAuthMsg('Giriş başarılı.', false);
+}
+async function authSignUp() {
+  if (!sb) return;
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  if (!email || !pass) { setAuthMsg('E-posta ve şifre gerekli.', true); return; }
+  if (pass.length < 6) { setAuthMsg('Şifre en az 6 karakter olmalı.', true); return; }
+  setAuthMsg('Hesap oluşturuluyor...', false);
+  const redirectTo = window.location.href.split('#')[0].split('?')[0];
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: { emailRedirectTo: redirectTo }
+  });
+  if (error) { setAuthMsg(error.message, true); return; }
+  if (!data.session) {
+    setAuthMsg('Kayıt tamam. E-posta doğrulaması gerekebilir, sonra giriş yap.', false);
+    return;
+  }
+  setAuthMsg('Kayıt başarılı.', false);
+}
+async function authSignOut() {
+  if (!sb) return;
+  await sb.auth.signOut();
+}
+async function bootstrapCloudForUser() {
+  if (!sbUser) return;
+  let payload = null;
+  const { data, error } = await sb.from('gym_user_data').select('payload').eq('user_id', sbUser.id).maybeSingle();
+  if (error && !String(error.message || '').includes('0 rows')) {
+    setAuthMsg('Bulut tablosu hazır değil. Önce SQL kurulumunu yapman lazım.', true);
+    console.error(error);
+    return;
+  }
+  if (data?.payload) payload = data.payload;
+  if (!payload) payload = loadCloudCache(sbUser.id);
+  if (!payload) payload = { profiles: { currentId: null, users: [] }, userDataMap: {} };
+  applyStatePayload(payload);
+
+  if (!profiles.users.length) {
+    profiles = { currentId: sbUser.id, users: [] };
+    userDataMap = {};
+    st = defaultUserData();
+    initFirstLaunch();
+  } else {
+    const u = me();
+    setAccent((u && u.color) || COLORS[0]);
+    render();
+  }
+
+  cloudBooted = true;
+  hideAuthOverlay();
+  queueCloudSave();
+}
+async function initCloudIfConfigured() {
+  if (!CLOUD_ENABLED) {
+    if (!profiles.users.length) initFirstLaunch();
+    else {
+      setAccent((me() && me().color) || COLORS[0]);
+      render();
+    }
+    return;
+  }
+
+  if (!window.supabase) {
+    const cdns = [
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+      'https://unpkg.com/@supabase/supabase-js@2'
+    ];
+    for (const url of cdns) {
+      try {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = url;
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+        if (window.supabase) break;
+      } catch (_) {}
+    }
+  }
+
+  if (!window.supabase) {
+    showAuthOverlay();
+    setAuthMsg('Auth SDK yüklenemedi. Adblock kapatıp sayfayı yenile.', true);
+    return;
+  }
+
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  showAuthOverlay();
+  setAuthMsg('Giriş yap veya kayıt ol.', false);
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    sbUser = session.user;
+    await bootstrapCloudForUser();
+  }
+
+  sb.auth.onAuthStateChange(async (event, sessionNow) => {
+    if (event === 'SIGNED_OUT') {
+      sbUser = null;
+      cloudBooted = false;
+      showAuthOverlay();
+      return;
+    }
+    if (sessionNow?.user) {
+      sbUser = sessionNow.user;
+      await bootstrapCloudForUser();
+    }
+  });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function weekData(w) { if (!st.weeks[w]) st.weeks[w] = {}; return st.weeks[w]; }
+function dayData(w, d) {
+  const wd = weekData(w);
+  if (!wd[d]) wd[d] = { completed:false, rest:false, exercises:{} };
+  if (wd[d].rest === undefined) wd[d].rest = false;
+  return wd[d];
+}
+function exData(w, d, i) { const dd = dayData(w,d); if (!dd.exercises[i]) dd.exercises[i] = {done:false,sets:{}}; return dd.exercises[i]; }
+
+function cloneJson(v) { return JSON.parse(JSON.stringify(v || {})); }
+function generateExerciseId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function ensureWeekProgramState() {
+  if (!st.weekPrograms) st.weekPrograms = {};
+  // Backward compatibility: migrate legacy global program into week 1
+  if (!st.weekPrograms[1] && ((st.custom && Object.keys(st.custom).length) || (st.dayNames && Object.keys(st.dayNames).length))) {
+    st.weekPrograms[1] = { custom: cloneJson(st.custom || {}), dayNames: cloneJson(st.dayNames || {}) };
+  }
+}
+function getWeekProgramState(w, createIfMissing = true) {
+  ensureWeekProgramState();
+  if (!st.weekPrograms[w] && createIfMissing) {
+    let prev = null;
+    for (let x = w - 1; x >= 1; x--) {
+      if (st.weekPrograms[x]) { prev = st.weekPrograms[x]; break; }
+    }
+    const base = prev || { custom: st.custom || {}, dayNames: st.dayNames || {} };
+    st.weekPrograms[w] = { custom: cloneJson(base.custom || {}), dayNames: cloneJson(base.dayNames || {}) };
+  }
+  return st.weekPrograms[w] || { custom: {}, dayNames: {} };
+}
+function customForWeek(w = st.currentWeek) { return getWeekProgramState(w).custom; }
+function dayNamesForWeek(w = st.currentWeek) { return getWeekProgramState(w).dayNames; }
+function ensureDayExerciseIds(w, d) {
+  const weekCustom = customForWeek(w);
+  const arr = weekCustom[d];
+  if (!Array.isArray(arr)) return;
+  for (const ex of arr) {
+    if (!ex._id) ex._id = generateExerciseId();
+  }
+}
+function propagateProgramForward(fromWeek) {
+  const src = getWeekProgramState(fromWeek);
+  for (let w = fromWeek + 1; w <= 16; w++) {
+    st.weekPrograms[w] = {
+      custom: cloneJson(src.custom || {}),
+      dayNames: cloneJson(src.dayNames || {})
+    };
+  }
+}
+
+function formatShortDateTR(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: '2-digit' });
+}
+
+function getWeightLog(metrics = st.metrics) {
+  if (!metrics) return [];
+  if (!Array.isArray(metrics.weightLog)) metrics.weightLog = [];
+  const normalized = metrics.weightLog.map((e, idx) => {
+    const weight = Number(String(e?.weight ?? '').replace(',', '.'));
+    if (!Number.isFinite(weight)) return null;
+    const parsedTs = Number(e?.ts);
+    const ts = Number.isFinite(parsedTs) && parsedTs > 0
+      ? parsedTs
+      : (Date.parse(e?.dateTime || '') || Date.parse(e?.date || '') || (Date.now() + idx));
+    const id = String(e?.id || e?._id || (`w_${ts}_${idx}`));
+    const dObj = new Date(ts);
+    return {
+      id,
+      ts,
+      date: e?.date || dObj.toLocaleDateString('tr-TR'),
+      time: e?.time || dObj.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+      weight: Math.round(weight * 10) / 10
+    };
+  }).filter(Boolean).sort((a, b) => a.ts - b.ts);
+  metrics.weightLog = normalized;
+  return normalized;
+}
+
+function dayProgram(d, w = st.currentWeek) {
+  const wp = getWeekProgramState(w);
+  const cust = wp.custom[d] || [];
+  const dn = (wp.dayNames || {})[d] || {};
+  if (cust.length === 0 && !dn.name) return null;
+  return {
+    name: dn.name || '',
+    sub: dn.sub || '',
+    exercises: cust.map(c => ({...c, isCustom:true}))
+  };
+}
+
+// ============================================================
+// PAGE SWITCH
+// ============================================================
+function switchPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  document.getElementById('nav-' + p).classList.add('active');
+  if (p === 'profile') renderProfile();
+}
+
+// ============================================================
+// RENDER HEADER
+// ============================================================
+function renderHeader() {
+  const u = me();
+  const av = document.getElementById('hAvatar');
+  renderAvatarElement(av, u);
+  document.getElementById('hName').textContent = u.name;
+  const now = new Date();
+  const days = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  document.getElementById('dateText').textContent = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
+}
+
+function renderWeekNav() {
+  const nav = document.getElementById('weekNav');
+  nav.innerHTML = '';
+  for (let w = 1; w <= 16; w++) {
+    const b = document.createElement('button');
+    b.className = 'week-btn' + (w === st.currentWeek ? ' active' : '');
+    b.textContent = 'H' + w;
+    b.onclick = () => { st.currentWeek = w; saveData(); render(); };
+    nav.appendChild(b);
+  }
+}
+
+// ============================================================
+// STATS
+// ============================================================
+function renderStats() {
+  const wd = weekData(st.currentWeek);
+  // Dynamic weekly target: count days that actually have a workout plan (custom/dayNames)
+  let totalPlan = 0;
+  let donePlan = 0;
+  for (let d = 1; d <= 7; d++) {
+    const hasPlan = !!dayProgram(d);
+    const isRest = !!wd[d]?.rest;
+    if (hasPlan && !isRest) {
+      totalPlan++;
+      if (wd[d]?.completed) donePlan++;
+    }
+  }
+
+  const weekVal = totalPlan ? `${donePlan}/${totalPlan}` : '—';
+  const lastW = getWeightLog(st.metrics).slice(-1)[0]?.weight;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-box"><div class="stat-val">${weekVal}</div><div class="stat-label">Bu Hafta</div></div>
+    <div class="stat-box"><div class="stat-val">${st.currentWeek}</div><div class="stat-label">Hafta</div></div>
+    <div class="stat-box"><div class="stat-val">${lastW || '—'}</div><div class="stat-label">Kilo (kg)</div></div>
+  `;
+}
+
+// ============================================================
+// DAY TABS
+// ============================================================
+function renderDayTabs() {
+  const tabs = document.getElementById('dayTabs');
+  tabs.innerHTML = '';
+  const wd = weekData(st.currentWeek);
+  const labels = {1:'Gün 1',2:'Gün 2',3:'Gün 3',4:'Gün 4',5:'Gün 5',6:'Gün 6',7:'Gün 7'};
+  for (let d = 1; d <= 7; d++) {
+    const el = document.createElement('div');
+    el.className = 'day-tab'
+      + (d === st.currentDay ? ' active' : '')
+      + (wd[d]?.completed ? ' completed' : '')
+      + (wd[d]?.rest ? ' rest' : '');
+    const dn = (dayNamesForWeek(st.currentWeek) || {})[d] || {};
+    const hasCust = (customForWeek(st.currentWeek)[d] || []).length > 0;
+    const dname = wd[d]?.rest ? 'DİNLEN' : (dn.name ? dn.name.split(' ')[0] : (hasCust ? 'AKT' : '—'));
+    el.innerHTML = `<div class="day-label">${labels[d]}</div><div class="day-name">${dname}</div><div class="day-dot"></div>`;
+    el.onclick = () => { st.currentDay = d; saveData(); renderWorkout(); renderDayTabs(); };
+    tabs.appendChild(el);
+  }
+}
+
+// ============================================================
+// WORKOUT
+// ============================================================
+function renderWorkout() {
+  const content = document.getElementById('workoutContent');
+  const d = st.currentDay, w = st.currentWeek;
+  ensureDayExerciseIds(w, d);
+  const prog = dayProgram(d, w);
+  const user = me();
+  const dd = dayData(w, d);
+
+  // If marked as rest day, show rest screen
+  if (dd.rest) {
+    content.innerHTML = `
+      <div class="rest-day">
+        <div class="rest-icon">🛌</div>
+        <div class="rest-title">DİNLENME GÜNÜ</div>
+        <div class="rest-sub">Bugün dinleniyorsun. İstersen kaldırıp antrenman ekleyebilirsin.</div>
+      </div>
+      <button class="add-ex-btn" style="margin-top:0;" onclick="toggleRestDay()">↩ Dinlenmeyi Kaldır</button>
+      <button class="add-ex-btn" onclick="openAddEx()">+ Yine de Egzersiz Ekle</button>
+      <div style="height:20px;"></div>
+    `;
+    return;
+  }
+
+  if (!prog) {
+    content.innerHTML = `
+      <div class="rest-day">
+        <div class="rest-icon">📋</div>
+        <div class="rest-title">BOŞ GÜN</div>
+        <div class="rest-sub">Bu güne henüz egzersiz eklemedin.</div>
+      </div>
+      <button class="add-ex-btn" style="margin-top:0;" onclick="openAddEx()">+ Egzersiz Ekle</button>
+      <button class="add-ex-btn" onclick="toggleRestDay()">🛌 Dinlenme Günü Olarak İşaretle</button>
+      <div style="height:20px;"></div>
+    `;
+    return;
+  }
+
+  const total = prog.exercises.length;
+  const doneCount = Object.values(dd.exercises).filter(e => e.done).length;
+  const C = 2 * Math.PI * 20;
+  const off = C - (doneCount / total) * C;
+
+  content.innerHTML = `
+    <div class="workout-header">
+      <div id="dayTitleArea">
+        <div class="title-row">
+          <div class="workout-title">${prog.name}</div>
+          <button class="edit-day-btn" onclick="editDayName()">✏</button>
+        </div>
+        <div class="workout-sub">${prog.sub} · ${total} egzersiz</div>
+        ${dd.completedAt ? `<div class="workout-date-stamp">Son tamamlanma: ${formatShortDateTR(dd.completedAt)}</div>` : ''}
+      </div>
+      <div class="progress-ring">
+        <svg width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="20" fill="none" stroke="#2a2a2a" stroke-width="3"/>
+          <circle cx="26" cy="26" r="20" fill="none" stroke="${user.color}" stroke-width="3"
+            stroke-dasharray="${C}" stroke-dashoffset="${off}"
+            stroke-linecap="round" style="transition:stroke-dashoffset 0.4s"/>
+        </svg>
+        <div class="progress-ring-text">${doneCount}/${total}</div>
+      </div>
+    </div>
+    <div class="section-label">EGZERSİZLER</div>
+    <div class="exercises" id="exList"></div>
+    <button class="add-ex-btn" onclick="openAddEx()">+ Egzersiz Ekle</button>
+    <button class="complete-btn ${dd.completed ? 'all-done' : ''}" onclick="completeDay()">
+      ${dd.completed ? '✓ TAMAMLANDI' : 'ANTRENMAN BİTTİ'}
+    </button>
+    <div style="height:20px;"></div>
+  `;
+
+  const list = document.getElementById('exList');
+  prog.exercises.forEach((ex, i) => {
+    const ed = exData(w, d, i);
+    const card = document.createElement('div');
+    card.className = 'exercise-card' + (ed.done ? ' done' : '') + (ex.isCustom ? ' custom-ex' : '');
+    card.id = 'ex' + i;
+
+    let setsHtml = '';
+    for (let s = 0; s < ex.sets; s++) {
+      const sd = ed.sets[s] || {};
+      setsHtml += `
+        <div class="set-row">
+          <div class="set-num">S${s+1}</div>
+          <input class="set-input" type="number" inputmode="decimal" placeholder="kg"
+            value="${sd.weight||''}" onchange="logSet(${i},${s},'weight',this.value)">
+          <input class="set-input" type="number" inputmode="numeric" placeholder="${ex.reps} tekrar"
+            value="${sd.reps||''}" onchange="logSet(${i},${s},'reps',this.value)">
+        </div>`;
+    }
+
+    const tip = ex.tip || TIPS[ex.name] || '';
+    const videoUrl = getVideoUrl(ex.name);
+    const hasVid = !!videoUrl;
+    const exId = ex._id || '';
+    const n = ex.name.replace(/'/g,"\\'");
+    const meta = ex.sets + ' set · ' + ex.reps + ' tekrar';
+
+    card.innerHTML = `
+      ${ex.isCustom ? `<div class="swipe-delete-slot"><button onclick="delCustomExById('${exId}')">✕</button></div>` : ''}
+      <div class="exercise-main">
+        <div class="exercise-header">
+          <div class="ex-number">${String(i+1).padStart(2,'0')}</div>
+          <div class="ex-info" onclick="toggleEx(${i})">
+            <div class="ex-name">${ex.name}${ex.isCustom ? ' <span style="font-size:10px;color:var(--muted);font-weight:400;vertical-align:middle;">ÖZEL</span>' : ''}</div>
+            <div class="ex-sets">${ex.sets} set · ${ex.reps} tekrar</div>
+          </div>
+          <div class="ex-actions">
+            ${hasVid ? `<button class="gif-btn" onclick="openVideo('${n}','${meta}')">▶</button>` : ''}
+            <button class="check-btn" onclick="markEx(${i})">
+              <span class="check-icon">${ed.done ? '✓' : ''}</span>
+            </button>
+          </div>
+        </div>
+        <div class="set-log">
+          <div class="set-log-title">Set Kayıt</div>
+          <div class="set-rows">${setsHtml}</div>
+          ${tip ? `<div class="set-tip">💡 ${tip}</div>` : ''}
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+    if (ex.isCustom) attachSwipeDelete(card);
+  });
+}
+
+function attachSwipeDelete(cardEl) {
+  const main = cardEl.querySelector('.exercise-main');
+  if (!main) return;
+  let startX = null;
+  let startY = null;
+  let lockHorizontal = null;
+  let ignoreGesture = false;
+  let current = 0;
+  const OPEN_X = 72;
+  const OPEN_TRIGGER = 42;
+
+  const setX = (x) => {
+    const safe = Math.max(0, Math.min(OPEN_X, x));
+    current = safe;
+    main.style.transform = `translateX(${safe}px)`;
+    cardEl.classList.toggle('swiped-open', safe > 8);
+  };
+  const close = () => setX(0);
+
+  main.addEventListener('touchstart', (e) => {
+    if (e.target.closest('button, input, textarea, .set-input, .check-btn, .gif-btn')) {
+      ignoreGesture = true;
+      startX = null;
+      startY = null;
+      lockHorizontal = null;
+      return;
+    }
+    ignoreGesture = false;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    lockHorizontal = null;
+  }, { passive: true });
+
+  main.addEventListener('touchmove', (e) => {
+    if (ignoreGesture || startX == null || startY == null) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    if (lockHorizontal == null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      lockHorizontal = Math.abs(dx) > Math.abs(dy) * 1.15;
+    }
+    if (!lockHorizontal) return;
+    setX(dx > 0 ? dx : 0);
+  }, { passive: true });
+
+  main.addEventListener('touchend', () => {
+    if (ignoreGesture || startX == null) {
+      ignoreGesture = false;
+      return;
+    }
+    setX(current >= OPEN_TRIGGER ? OPEN_X : 0);
+    startX = null;
+    startY = null;
+    lockHorizontal = null;
+  });
+
+  cardEl.addEventListener('mouseleave', close);
+}
+// ============================================================
+// REST DAY TOGGLE
+// ============================================================
+function toggleRestDay() {
+  const w = st.currentWeek, d = st.currentDay;
+  const dd = dayData(w, d);
+
+  if (!dd.rest) {
+    // If there is workout content, warn once
+    const weekCustom = customForWeek(w);
+    const weekNames = dayNamesForWeek(w);
+    const hasAny = (weekCustom?.[d]?.length || 0) > 0 || !!(weekNames?.[d]?.name);
+    if (hasAny) {
+      const ok = confirm('Bu günde antrenman içeriği var. Yine de dinlenme günü olarak işaretlensin mi?');
+      if (!ok) return;
+    }
+    dd.rest = true;
+    dd.completed = false;
+    toast('🛌 Dinlenme günü');
+  } else {
+    dd.rest = false;
+    toast('↩ Dinlenme kaldırıldı');
+  }
+
+  saveData();
+  renderDayTabs();
+  renderWorkout();
+  renderStats();
+}
+
+function toggleEx(i) { document.getElementById('ex'+i).classList.toggle('expanded'); }
+function syncDayCompletionState(w, d) {
+  const dd = dayData(w, d);
+  const wasCompleted = !!dd.completed;
+  const prog = dayProgram(d, w);
+
+  if (!prog || prog.exercises.length === 0) {
+    dd.completed = false;
+    dd.completedAt = null;
+    return { becameCompleted: false, becameIncomplete: wasCompleted };
+  }
+
+  let doneCount = 0;
+  for (let x = 0; x < prog.exercises.length; x++) {
+    if (exData(w, d, x).done) doneCount++;
+  }
+
+  const allDone = doneCount === prog.exercises.length;
+  dd.completed = allDone;
+  dd.completedAt = allDone ? (dd.completedAt || Date.now()) : null;
+
+  return { becameCompleted: !wasCompleted && allDone, becameIncomplete: wasCompleted && !allDone };
+}
+
+function markEx(i) {
+  const w = st.currentWeek;
+  const d = st.currentDay;
+  const ed = exData(w, d, i);
+  ed.done = !ed.done;
+  const sync = syncDayCompletionState(w, d);
+  if (sync.becameCompleted) toast('✓ Antrenman tamamlandı!');
+
+  saveData();
+  render();
+}
+function logSet(ei, si, f, v) { const ed = exData(st.currentWeek, st.currentDay, ei); if (!ed.sets[si]) ed.sets[si] = {}; ed.sets[si][f] = v; saveData(); renderStats(); }
+function completeDay() {
+  const dd = dayData(st.currentWeek, st.currentDay);
+  dd.completed = !dd.completed;
+  dd.completedAt = dd.completed ? Date.now() : null;
+  saveData();
+  if (dd.completed) toast('✓ Antrenman tamamlandı!');
+  render();
+}
+
+// ============================================================
+// PROGRAM (templates + export/import)
+// ============================================================
+function resetProgramState() {
+  // wipe progress but keep metrics
+  const keepMetrics = st.metrics || { height: null, weightLog: [] };
+  st.weeks = {};
+  st.currentWeek = 1;
+  st.currentDay = 1;
+  st.custom = {};
+  st.dayNames = {};
+  st.weekPrograms = {};
+  st.metrics = keepMetrics;
+}
+
+function applyProgramPayload(payload) {
+  resetProgramState();
+  st.weekPrograms[1] = { custom: cloneJson(payload.custom || {}), dayNames: cloneJson(payload.dayNames || {}) };
+  propagateProgramForward(1);
+  st.custom = cloneJson(payload.custom || {}); // legacy compatibility cache
+  st.dayNames = cloneJson(payload.dayNames || {}); // legacy compatibility cache
+  saveData();
+  render();
+  toast('✓ Program yüklendi');
+}
+
+function openProgramTemplates() {
+  const list = document.getElementById('programList');
+  list.innerHTML = '';
+  Object.entries(PROGRAM_TEMPLATES).forEach(([key, t]) => {
+    const el = document.createElement('div');
+    el.className = 'template-item';
+    el.innerHTML = `
+      <div>
+        <div class="template-name">${t.title}</div>
+        <div class="template-sub">${t.sub}</div>
+      </div>
+      <div class="template-pill">${t.badge || 'TPL'}</div>
+    `;
+    el.onclick = () => {
+      const tpl = PROGRAM_TEMPLATES[key];
+      const payload = tpl.build ? tpl.build() : { dayNames: tpl.dayNames || {}, custom: tpl.custom || {} };
+      applyProgramPayload(payload);
+      document.getElementById('programOverlay').classList.remove('open');
+    };
+    list.appendChild(el);
+  });
+  switchPage('workout');
+  document.getElementById('programOverlay').classList.add('open');
+}
+
+function closeProgram(e) { if (e.target.id === 'programOverlay') document.getElementById('programOverlay').classList.remove('open'); }
+
+function exportProgram() {
+  const wp = getWeekProgramState(st.currentWeek);
+  const payload = {
+    v: 1,
+    dayNames: wp.dayNames || {},
+    custom: wp.custom || {}
+  };
+  const txt = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  const pretty = 'GYM1.' + txt;
+
+  const done = () => toast('✓ Program kodu kopyalandı');
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(pretty).then(done).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = pretty; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      ta.remove();
+      done();
+    });
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = pretty; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    ta.remove();
+    done();
+  }
+}
+
+function openImport() {
+  document.getElementById('importBox').value = '';
+  document.getElementById('importOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('importBox').focus(), 50);
+}
+
+function closeImport(e) { if (e.target.id === 'importOverlay') document.getElementById('importOverlay').classList.remove('open'); }
+
+function importProgram() {
+  const raw = (document.getElementById('importBox').value || '').trim();
+  if (!raw) { toast('Kod boş'); return; }
+
+  try {
+    let obj = null;
+
+    if (raw.startsWith('GYM1.')) {
+      const b64 = raw.slice(5);
+      const json = decodeURIComponent(escape(atob(b64)));
+      obj = JSON.parse(json);
+    } else if (raw.startsWith('{')) {
+      obj = JSON.parse(raw);
+    } else {
+      // try base64 without prefix
+      const json = decodeURIComponent(escape(atob(raw)));
+      obj = JSON.parse(json);
+    }
+
+    if (!obj || (!obj.custom && !obj.dayNames)) throw new Error('Geçersiz format');
+
+    applyProgramPayload({
+      dayNames: obj.dayNames || {},
+      custom: obj.custom || {}
+    });
+
+    document.getElementById('importOverlay').classList.remove('open');
+  } catch (e) {
+    toast('Kod okunamadı');
+  }
+}
+
+// ============================================================
+// CUSTOM EXERCISES
+// ============================================================
+let addExDay = null;
+let addExCategory = 'gogus';
+let addExPickedIndex = -1;
+
+function showAddExStep(step) {
+  const choice = document.getElementById('addExStepChoice');
+  const pool = document.getElementById('addExStepPool');
+  const form = document.getElementById('addExStepForm');
+  const sub = document.getElementById('addExSub');
+  if (!choice || !pool || !form || !sub) return;
+
+  choice.style.display = step === 'choice' ? 'block' : 'none';
+  pool.style.display = step === 'pool' ? 'block' : 'none';
+  form.style.display = step === 'form' ? 'block' : 'none';
+
+  if (step === 'choice') sub.textContent = 'Hazır havuzdan seç veya kendi hareketini yaz';
+  if (step === 'pool') sub.textContent = 'Kategori seç, hareket seç, sonra ilerle';
+  if (step === 'form') sub.textContent = 'Hareket detayını kontrol et ve ekle';
+}
+
+function startPoolMode() {
+  addExPickedIndex = -1;
+  renderExercisePool();
+  showAddExStep('pool');
+}
+
+function startManualMode() {
+  showAddExStep('form');
+  document.getElementById('exName').focus();
+}
+
+function renderExercisePool() {
+  const cats = document.getElementById('poolCats');
+  const list = document.getElementById('poolList');
+  if (!cats || !list) return;
+
+  cats.innerHTML = '';
+  Object.entries(EXERCISE_LIBRARY).forEach(([key, cat]) => {
+    const b = document.createElement('button');
+    b.className = 'pool-cat-btn' + (key === addExCategory ? ' active' : '');
+    b.textContent = cat.label;
+    b.onclick = () => setAddExCategory(key);
+    cats.appendChild(b);
+  });
+
+  list.innerHTML = '';
+  const items = EXERCISE_LIBRARY[addExCategory]?.items || [];
+  items.forEach((ex, i) => {
+    const el = document.createElement('div');
+    el.className = 'pool-item' + (i === addExPickedIndex ? ' picked' : '');
+    el.innerHTML = `
+      <div class="pool-item-top">
+        <div>
+          <div class="pool-item-name">${ex.name}</div>
+          <div class="pool-item-meta">${ex.sets} set · ${ex.reps} tekrar</div>
+        </div>
+        <span class="pool-item-pill">Ekle</span>
+      </div>
+    `;
+    el.onclick = () => applyLibraryExercise(i);
+    list.appendChild(el);
+  });
+}
+
+function setAddExCategory(catKey) {
+  addExCategory = catKey;
+  addExPickedIndex = -1;
+  renderExercisePool();
+}
+
+function applyLibraryExercise(index) {
+  addExPickedIndex = index;
+  const ex = EXERCISE_LIBRARY[addExCategory]?.items?.[index];
+  if (!ex) return;
+  document.getElementById('exName').value = ex.name || '';
+  document.getElementById('exSets').value = ex.sets || '';
+  document.getElementById('exReps').value = ex.reps || '';
+  document.getElementById('exTip').value = ex.tip || TIPS[ex.name] || '';
+  renderExercisePool();
+}
+
+function continueFromPool() {
+  if (addExPickedIndex < 0 || !document.getElementById('exName').value.trim()) {
+    toast('Önce bir egzersiz seç');
+    return;
+  }
+  showAddExStep('form');
+}
+
+function openAddEx() {
+  addExDay = st.currentDay;
+  addExCategory = 'gogus';
+  addExPickedIndex = -1;
+  ['exName','exSets','exReps','exTip'].forEach(id => document.getElementById(id).value = '');
+  showAddExStep('choice');
+  document.getElementById('addExOverlay').classList.add('open');
+}
+function closeAddEx(e) { if (e.target.id === 'addExOverlay') document.getElementById('addExOverlay').classList.remove('open'); }
+function saveExercise() {
+  const name = document.getElementById('exName').value.trim();
+  if (!name) { document.getElementById('exName').focus(); return; }
+  const sets = parseInt(document.getElementById('exSets').value) || 3;
+  const reps = document.getElementById('exReps').value.trim() || '10';
+  const tip = document.getElementById('exTip').value.trim();
+  const weekCustom = customForWeek(st.currentWeek);
+  if (!weekCustom[addExDay]) weekCustom[addExDay] = [];
+  weekCustom[addExDay].push({ _id: generateExerciseId(), name, sets, reps, tip, isCustom: true });
+  propagateProgramForward(st.currentWeek);
+  syncDayCompletionState(st.currentWeek, addExDay);
+  saveData();
+  document.getElementById('addExOverlay').classList.remove('open');
+  render();
+}
+function delCustomExById(exId) {
+  const d = st.currentDay;
+  const weekCustom = customForWeek(st.currentWeek);
+  if (weekCustom[d]) {
+    const idx = weekCustom[d].findIndex(ex => ex && ex._id === exId);
+    if (idx < 0) return;
+    weekCustom[d].splice(idx, 1);
+    propagateProgramForward(st.currentWeek);
+    syncDayCompletionState(st.currentWeek, d);
+    saveData();
+    render();
+  }
+}
+
+// ============================================================
+// VIDEO MODAL
+// ============================================================
+async function openVideo(name, meta) {
+  document.getElementById('vTitle').textContent = name;
+  document.getElementById('vMeta').textContent = meta;
+  document.getElementById('vTip').textContent = TIPS[name] || 'Hareketi kontrollü ve tam aralıkta yap.';
+  const videoUrl = getVideoUrl(name);
+  const img = document.getElementById('vImg');
+  const loading = document.getElementById('vLoading');
+  const frame = document.getElementById('vFrame');
+  let vid = document.getElementById('vidEl');
+  if (!vid) {
+    vid = document.createElement('video');
+    vid.id = 'vidEl'; vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsInline = true;
+    vid.style.cssText = 'width:100%;max-height:320px;object-fit:cover;background:#000;display:block;';
+    img.parentNode.insertBefore(vid, img);
+  }
+
+  const openMediaFallback = async () => {
+    const media = await getWgerMediaUrl(name);
+    if (!media) {
+      loading.style.display = 'flex';
+      loading.textContent = 'Medya bulunamadı';
+      vid.style.display = 'none';
+      img.style.display = 'none';
+      frame.style.display = 'none';
+      return;
+    }
+    if (/\.(mp4|mov)(\?|$)/i.test(media)) {
+      vid.style.display = 'block';
+      img.style.display = 'none';
+      frame.style.display = 'none';
+      loading.style.display = 'none';
+      vid.src = media;
+      vid.load();
+      vid.play().catch(() => {
+        loading.style.display = 'flex';
+        loading.textContent = 'Video açılamadı';
+      });
+      return;
+    }
+    vid.style.display = 'none';
+    frame.style.display = 'none';
+    loading.style.display = 'none';
+    img.style.display = 'block';
+    img.src = media;
+  };
+
+  frame.style.display = 'none';
+  frame.src = '';
+  img.style.display = 'none';
+  loading.style.display = 'flex';
+  loading.textContent = 'Yükleniyor...';
+
+  if (videoUrl) {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      openMediaFallback();
+    }, 2500);
+
+    vid.onloadeddata = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      loading.style.display = 'none';
+      vid.style.display = 'block';
+      vid.play().catch(() => openMediaFallback());
+    };
+    vid.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      openMediaFallback();
+    };
+    vid.style.display = 'block';
+    vid.src = videoUrl;
+    vid.load();
+  } else {
+    openMediaFallback();
+  }
+  document.getElementById('videoOverlay').classList.add('open');
+}
+function closeVideo(e) { if (e.target.id === 'videoOverlay') closeVideoModal(); }
+function closeVideoModal() {
+  document.getElementById('videoOverlay').classList.remove('open');
+  const v = document.getElementById('vidEl'); if (v) { v.pause(); v.src = ''; }
+  const f = document.getElementById('vFrame'); if (f) f.src = '';
+}
+
+// ============================================================
+// USER SWITCHER
+// ============================================================
+function openSwitcher() {
+  if (CLOUD_ENABLED) {
+    switchPage('profile');
+    return;
+  }
+  const list = document.getElementById('switcherList');
+  list.innerHTML = '';
+  profiles.users.forEach(u => {
+    const el = document.createElement('div');
+    el.className = 'user-item' + (u.id === profiles.currentId ? ' me' : '');
+    el.innerHTML = `
+      <div class="u-avatar" style="${u.photo ? 'background:transparent;' : `background:${u.color};`}">${u.photo ? `<img src="${u.photo}" alt="${u.name}" class="avatar-img">` : initials(u.name)}</div>
+      <div class="u-info">
+        <div class="u-name">${u.name}</div>
+        <div class="u-sub">${u.id === profiles.currentId ? 'Aktif kullanıcı' : 'Geçmek için tıkla'}</div>
+      </div>
+      ${u.id === profiles.currentId ? '<span class="active-badge">AKTİF</span>' : ''}
+    `;
+    if (u.id !== profiles.currentId) el.onclick = () => switchUser(u.id);
+    list.appendChild(el);
+  });
+  document.getElementById('switcherOverlay').classList.add('open');
+}
+function closeSwitcher(e) { if (e.target.id === 'switcherOverlay') document.getElementById('switcherOverlay').classList.remove('open'); }
+
+// ============================================================
+// ADD USER
+// ============================================================
+let pickedColor = COLORS[0];
+function openAddUser() {
+  if (CLOUD_ENABLED) { toast('Bulut modunda tek hesap kullanılır.'); return; }
+  document.getElementById('switcherOverlay').classList.remove('open');
+  document.getElementById('newUserName').value = '';
+  pickedColor = COLORS[profiles.users.length % COLORS.length];
+  const row = document.getElementById('colorRow');
+  row.innerHTML = '';
+  COLORS.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'color-dot' + (c === pickedColor ? ' picked' : '');
+    d.style.background = c;
+    d.onclick = () => { pickedColor = c; document.querySelectorAll('.color-dot').forEach(x => x.classList.remove('picked')); d.classList.add('picked'); };
+    row.appendChild(d);
+  });
+  document.getElementById('addUserOverlay').classList.add('open');
+}
+function closeAddUser(e) { if (e.target.id === 'addUserOverlay') document.getElementById('addUserOverlay').classList.remove('open'); }
+function saveUser() {
+  if (CLOUD_ENABLED) return;
+  const name = document.getElementById('newUserName').value.trim();
+  if (!name) { document.getElementById('newUserName').focus(); return; }
+  const u = { id: Date.now().toString(), name, color: pickedColor, created: Date.now() };
+  profiles.users.push(u);
+  saveProfiles();
+  document.getElementById('addUserOverlay').classList.remove('open');
+  switchUser(u.id);
+}
+
+// ============================================================
+// PROFILE PAGE
+// ============================================================
+function renderProfile() {
+  const u = me();
+  const m = st.metrics || { height: null, weightLog: [] };
+  const weightLog = getWeightLog(m);
+  const lastW = weightLog.slice(-1)[0]?.weight || null;
+  const bmi = m.height && lastW ? (lastW / ((m.height/100)**2)).toFixed(1) : null;
+  let bmiColor = '#aaa', bmiCat = '';
+  if (bmi) {
+    if (bmi < 18.5)      { bmiColor = '#47b8ff'; bmiCat = 'Zayıf'; }
+    else if (bmi < 25)   { bmiColor = '#6abf3a'; bmiCat = 'Normal'; }
+    else if (bmi < 30)   { bmiColor = '#ffce47'; bmiCat = 'Fazla Kilolu'; }
+    else                 { bmiColor = '#ff6b6b'; bmiCat = 'Obez'; }
+  }
+
+  const recent = weightLog.slice(-7).reverse();
+  let histHtml = recent.length ? '' : '<div style="color:var(--muted);font-size:13px;padding:8px 0;">Henüz kilo kaydı yok.</div>';
+  recent.forEach((e, i) => {
+    const prev = recent[i+1];
+    let diffHtml = '';
+    if (prev) {
+      const d = (e.weight - prev.weight).toFixed(1);
+      const cls = d > 0 ? 'up' : (d < 0 ? 'dn' : '');
+      const sign = d > 0 ? '+' : '';
+      if (d != 0) diffHtml = `<span class="w-diff ${cls}">${sign}${d}kg</span>`;
+    }
+    histHtml += `<div class="weight-entry"><span class="w-date">${e.date}${e.time ? ` · ${e.time}` : ''}</span><div style="display:flex;align-items:center;gap:8px;">${diffHtml}<span class="w-val">${e.weight} kg</span><button class="w-del" onclick="deleteWeightEntry('${e.id}')">Sil</button></div></div>`;
+  });
+
+  let chartHtml = '';
+  if (weightLog.length >= 2) {
+    const pts10 = weightLog.slice(-10);
+    const ws = pts10.map(e => e.weight);
+    const rawMin = Math.min(...ws), rawMax = Math.max(...ws);
+    const pad = rawMin === rawMax ? 1 : 0.5;
+    const mn = rawMin - pad, mx = rawMax + pad;
+    const den = Math.max(0.0001, mx - mn);
+    const W=340, H=70;
+    const points = ws.map((w,i) => `${(i/(ws.length-1))*(W-20)+10},${H-((w-mn)/den)*(H-20)-10}`).join(' ');
+    chartHtml = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block;margin-bottom:12px;">
+      <polyline points="${points}" fill="none" stroke="${u.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      ${ws.map((w,i) => { const x=(i/(ws.length-1))*(W-20)+10, y=H-((w-mn)/den)*(H-20)-10; return `<circle cx="${x}" cy="${y}" r="4" fill="${u.color}"/>`; }).join('')}
+    </svg>`;
+  }
+
+  const usersHtml = profiles.users.map(u2 => `
+    <div class="user-item ${u2.id===profiles.currentId?'me':''}" ${u2.id!==profiles.currentId?`onclick="switchUser('${u2.id}')"`:''}>
+      <div class="u-avatar" style="${u2.photo ? 'background:transparent;' : `background:${u2.color};`}">${u2.photo ? `<img src="${u2.photo}" alt="${u2.name}" class="avatar-img">` : initials(u2.name)}</div>
+      <div class="u-info"><div class="u-name">${u2.name}</div><div class="u-sub">${u2.id===profiles.currentId?'Aktif':'Geçmek için tıkla'}</div></div>
+      ${u2.id===profiles.currentId?'<span class="active-badge">AKTİF</span>':''}
+    </div>`).join('');
+  const accountEmail = sbUser?.email || '';
+
+  document.getElementById('profileContent').innerHTML = `
+    <div class="profile-card">
+      <div class="profile-card-top">
+        <div class="avatar-lg" style="${u.photo ? 'background:transparent;' : `background:${u.color};`}">${u.photo ? `<img src="${u.photo}" alt="${u.name}" class="avatar-img">` : initials(u.name)}</div>
+        <div id="nameArea" style="flex:1;">
+          <div class="profile-name">${u.name}</div>
+          <div class="profile-since">Üye · ${new Date(u.created).toLocaleDateString('tr-TR')}</div>
+        </div>
+        <div class="profile-actions">
+          <button class="edit-name-btn" onclick="pickProfilePhoto()">Fotoğraf</button>
+          <button class="edit-name-btn" onclick="editName()">Düzenle</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-section">
+      <div class="section-title">VÜCUT METRİKLERİ</div>
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <div class="metric-lbl">Boy</div>
+          <div class="metric-num">${m.height||'—'}<span class="metric-unit"> cm</span></div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-lbl">Kilo</div>
+          <div class="metric-num">${lastW||'—'}<span class="metric-unit"> kg</span></div>
+        </div>
+      </div>
+      <div class="input-row">
+        <input class="metric-input" id="hInput" type="number" inputmode="decimal" placeholder="Boy (cm)" value="${m.height||''}">
+        <input class="metric-input" id="wInput" type="number" inputmode="decimal" placeholder="Kilo (kg)">
+        <button class="save-btn" onclick="saveMetrics()">Kaydet</button>
+      </div>
+    </div>
+
+    ${bmi ? `
+    <div class="bmi-box">
+      <div>
+        <div class="bmi-lbl">VKİ (BMI)</div>
+        <div class="bmi-num" style="color:${bmiColor}">${bmi}</div>
+        <div class="bmi-cat" style="color:${bmiColor}">${bmiCat}</div>
+      </div>
+      <div style="font-size:48px;">⚖️</div>
+    </div>` : ''}
+
+    <div class="weight-section">
+      <div class="section-title">KİLO GEÇMİŞİ</div>
+      ${chartHtml}
+      ${histHtml}
+    </div>
+
+    <div class="program-section" style="margin-top:24px;">
+      <div class="section-title">PROGRAM</div>
+      <div class="program-card">
+        <div class="program-row">
+          <button class="program-btn primary" onclick="openProgramTemplates()">Şablon Seç</button>
+          <button class="program-btn" onclick="openImport()">İçe Aktar</button>
+          <button class="program-btn" onclick="exportProgram()">Dışa Aktar</button>
+          <button class="program-btn danger" onclick="applyProgramPayload({dayNames:{},custom:{}})">Sıfırla</button>
+        </div>
+        <div class="program-note">Şablon seç / içe aktar / sıfırla: mevcut programını temizler. Dışa aktar: programını kopyalar, arkadaşına gönderebilirsin.</div>
+      </div>
+    </div>
+
+    <div class="team-section" style="margin-top:24px;">
+      <div class="section-title">${CLOUD_ENABLED ? 'HESAP' : 'TAKIM'}</div>
+      ${CLOUD_ENABLED ? `
+      <div class="program-card">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Giriş yapılan hesap</div>
+        <div style="font-weight:700;">${accountEmail || '—'}</div>
+        <button class="program-btn danger" style="margin-top:12px;" onclick="authSignOut()">Çıkış Yap</button>
+      </div>` : `
+      ${usersHtml}
+      <button class="add-user-btn" onclick="openAddUser()">+ Arkadaş Ekle</button>`}
+    </div>
+    <div style="height:24px;"></div>
+  `;
+}
+
+function saveMetrics() {
+  const parseMetricNumber = (v) => {
+    const txt = String(v || '').trim().replace(',', '.').replace(/[^\d.]/g, '');
+    if (!txt) return NaN;
+    return Number(txt);
+  };
+  const h = parseMetricNumber(document.getElementById('hInput').value);
+  const w = parseMetricNumber(document.getElementById('wInput').value);
+  if (!st.metrics) st.metrics = { height: null, weightLog: [] };
+  if (h > 100 && h < 250) st.metrics.height = h;
+  else if (String(document.getElementById('hInput').value || '').trim()) toast('Boy değeri geçersiz');
+  if (w > 30 && w < 300) {
+    const now = new Date();
+    const nowTs = now.getTime();
+    const today = now.toLocaleDateString('tr-TR');
+    const nowTime = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    const log = getWeightLog(st.metrics);
+    const last = log[log.length - 1];
+    const shouldUpdateLast = !!last && Math.abs(nowTs - last.ts) < (5 * 60 * 1000);
+    if (shouldUpdateLast) {
+      last.weight = Math.round(w * 10) / 10;
+      last.ts = nowTs;
+      last.date = today;
+      last.time = nowTime;
+    } else {
+      log.push({
+        id: `w_${generateExerciseId()}`,
+        ts: nowTs,
+        date: today,
+        time: nowTime,
+        weight: Math.round(w * 10) / 10
+      });
+    }
+    st.metrics.weightLog = log;
+  }
+  else if (String(document.getElementById('wInput').value || '').trim()) toast('Kilo değeri geçersiz');
+  saveData(); renderStats(); renderProfile(); toast('✓ Kaydedildi');
+}
+
+function deleteWeightEntry(entryId) {
+  if (!st.metrics?.weightLog?.length) return;
+  const log = getWeightLog(st.metrics);
+  const idx = log.findIndex(e => e.id === entryId);
+  if (idx < 0) return;
+  log.splice(idx, 1);
+  st.metrics.weightLog = log;
+  saveData();
+  renderStats();
+  renderProfile();
+  toast('Kilo kaydı silindi');
+}
+
+function editName() {
+  const u = me();
+  document.getElementById('nameArea').innerHTML = `
+    <input class="name-edit-input" id="nameIn" type="text" value="${u.name}" maxlength="20">
+    <div class="name-edit-row">
+      <button class="confirm" onclick="saveName()">Kaydet</button>
+      <button class="cancel" onclick="renderProfile()">İptal</button>
+    </div>`;
+  document.getElementById('nameIn').focus();
+}
+function saveName() {
+  const v = document.getElementById('nameIn').value.trim();
+  if (!v) return;
+  me().name = v; saveProfiles(); renderHeader(); renderProfile();
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// DAY NAME EDIT
+// ============================================================
+function editDayName() {
+  const d = st.currentDay;
+  const prog = dayProgram(d, st.currentWeek);
+  const weekNames = dayNamesForWeek(st.currentWeek);
+  const area = document.getElementById('dayTitleArea');
+  area.innerHTML = `
+    <input class="day-name-input" id="editNameIn" type="text" value="${prog.name}" placeholder="Antrenman adı" maxlength="20">
+    <input class="day-sub-input" id="editSubIn" type="text" value="${weekNames[d]?.sub || BASE_PROGRAM[d]?.sub || ''}" placeholder="Alt başlık" maxlength="30">
+    <div class="day-edit-actions">
+      <button class="ok" onclick="saveDayName()">Kaydet</button>
+      <button class="cancel" onclick="renderWorkout()">İptal</button>
+    </div>
+  `;
+  document.getElementById('editNameIn').focus();
+  document.getElementById('editNameIn').select();
+}
+
+function saveDayName() {
+  const d = st.currentDay;
+  const name = document.getElementById('editNameIn').value.trim();
+  const sub = document.getElementById('editSubIn').value.trim();
+  const weekNames = dayNamesForWeek(st.currentWeek);
+  weekNames[d] = {
+    name: name || BASE_PROGRAM[d]?.name || '',
+    sub: sub || BASE_PROGRAM[d]?.sub || ''
+  };
+  propagateProgramForward(st.currentWeek);
+  saveData();
+  renderWorkout();
+  renderDayTabs();
+  toast('✓ Kaydedildi');
+}
+
+// ============================================================
+// MAIN RENDER
+// ============================================================
+function render() {
+  renderHeader(); renderWeekNav(); renderStats(); renderDayTabs(); renderWorkout();
+}
+
+// ============================================================
+// FIRST LAUNCH
+// ============================================================
+let firstLaunchPickedColor = COLORS[0];
+
+function initFirstLaunch() {
+  const overlay = document.getElementById('firstLaunchOverlay');
+  overlay.style.display = 'flex';
+  firstLaunchPickedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+  const row = document.getElementById('firstLaunchColors');
+  row.innerHTML = '';
+  COLORS.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'color-dot' + (c === firstLaunchPickedColor ? ' picked' : '');
+    d.style.background = c;
+    d.onclick = () => {
+      firstLaunchPickedColor = c;
+      document.querySelectorAll('#firstLaunchColors .color-dot').forEach(x => x.classList.remove('picked'));
+      d.classList.add('picked');
+    };
+    row.appendChild(d);
+  });
+  setTimeout(() => document.getElementById('firstLaunchName').focus(), 300);
+}
+
+function firstLaunchSave() {
+  const name = document.getElementById('firstLaunchName').value.trim();
+  if (!name) { document.getElementById('firstLaunchName').focus(); return; }
+  const uid = (CLOUD_ENABLED && sbUser) ? sbUser.id : Date.now().toString();
+  const u = { id: uid, name, color: firstLaunchPickedColor, created: Date.now() };
+  profiles.users = [u];
+  profiles.currentId = uid;
+  userDataMap[uid] = defaultUserData();
+  saveProfiles();
+  st = loadUserData(uid);
+  document.getElementById('firstLaunchOverlay').style.display = 'none';
+  setAccent(u.color);
+  render();
+  queueCloudSave();
+  // İlk giriş: şablon seçtir
+  openProgramTemplates();
+}
+
+initCloudIfConfigured();
+</script>
+</body>
+</html>
