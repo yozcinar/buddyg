@@ -145,7 +145,17 @@
     border-radius: 16px; overflow: hidden; transition: all 0.3s;
   }
   .exercise-card.done { background: var(--done); border-color: var(--done-border); }
-  .exercise-card.custom-ex { border-left: 3px solid var(--accent); }
+  .exercise-card.custom-ex { border-left: 3px solid var(--accent); position: relative; }
+  .swipe-delete-slot {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 72px;
+    background: rgba(255,80,80,0.2); border-right: 1px solid rgba(255,80,80,0.35);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .swipe-delete-slot button {
+    border: none; background: rgba(255,80,80,0.95); color: #fff;
+    width: 34px; height: 34px; border-radius: 10px; font-size: 16px; font-weight: 800; cursor: pointer;
+  }
+  .exercise-main { position: relative; z-index: 1; background: inherit; transition: transform 0.18s ease-out; }
   .exercise-header { display: flex; align-items: center; padding: 14px 16px; gap: 12px; user-select: none; }
   .ex-number { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--muted); min-width: 28px; line-height: 1; }
   .exercise-card.done .ex-number { color: var(--done-border); }
@@ -169,13 +179,6 @@
   }
   .exercise-card.done .check-btn { background: var(--done-border); border-color: var(--done-border); }
   .check-icon { font-size: 16px; }
-  .del-btn {
-    width: 28px; height: 28px; border-radius: 50%;
-    border: 1px solid rgba(255,80,80,0.3); background: transparent;
-    color: rgba(255,80,80,0.6); font-size: 13px;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-  }
-  .del-btn:active { background: rgba(255,80,80,0.15); }
 
   /* SET LOG */
   .set-log { display: none; padding: 0 16px 14px; border-top: 1px solid var(--border); }
@@ -333,6 +336,10 @@
   .w-diff { font-size: 12px; font-weight: 600; }
   .w-diff.up { color: #ff6b6b; }
   .w-diff.dn { color: var(--done-border); }
+  .w-del {
+    margin-left: 8px; border: 1px solid rgba(255,80,80,0.35); background: transparent;
+    color: rgba(255,120,120,0.95); border-radius: 8px; padding: 4px 8px; font-size: 11px; cursor: pointer;
+  }
 
   /* PROGRAM */
   .program-section { padding: 0 20px; margin-top: 8px; }
@@ -1632,27 +1639,65 @@ function renderWorkout() {
     const meta = ex.sets + ' set · ' + ex.reps + ' tekrar';
 
     card.innerHTML = `
-      <div class="exercise-header">
-        <div class="ex-number">${String(i+1).padStart(2,'0')}</div>
-        <div class="ex-info" onclick="toggleEx(${i})">
-          <div class="ex-name">${ex.name}${ex.isCustom ? ' <span style="font-size:10px;color:var(--muted);font-weight:400;vertical-align:middle;">ÖZEL</span>' : ''}</div>
-          <div class="ex-sets">${ex.sets} set · ${ex.reps} tekrar</div>
+      ${ex.isCustom ? `<div class="swipe-delete-slot"><button onclick="delCustomEx(${custIdx})">✕</button></div>` : ''}
+      <div class="exercise-main">
+        <div class="exercise-header">
+          <div class="ex-number">${String(i+1).padStart(2,'0')}</div>
+          <div class="ex-info" onclick="toggleEx(${i})">
+            <div class="ex-name">${ex.name}${ex.isCustom ? ' <span style="font-size:10px;color:var(--muted);font-weight:400;vertical-align:middle;">ÖZEL</span>' : ''}</div>
+            <div class="ex-sets">${ex.sets} set · ${ex.reps} tekrar</div>
+          </div>
+          <div class="ex-actions">
+            ${hasVid ? `<button class="gif-btn" onclick="openVideo('${n}','${meta}')">▶</button>` : ''}
+            <button class="check-btn" onclick="markEx(${i})">
+              <span class="check-icon">${ed.done ? '✓' : ''}</span>
+            </button>
+          </div>
         </div>
-        <div class="ex-actions">
-          ${hasVid ? `<button class="gif-btn" onclick="openVideo('${n}','${meta}')">▶</button>` : ''}
-          ${ex.isCustom ? `<button class="del-btn" onclick="delCustomEx(${custIdx})">✕</button>` : ''}
-          <button class="check-btn" onclick="markEx(${i})">
-            <span class="check-icon">${ed.done ? '✓' : ''}</span>
-          </button>
+        <div class="set-log">
+          <div class="set-log-title">Set Kayıt</div>
+          <div class="set-rows">${setsHtml}</div>
+          ${tip ? `<div class="set-tip">💡 ${tip}</div>` : ''}
         </div>
       </div>
-      <div class="set-log">
-        <div class="set-log-title">Set Kayıt</div>
-        <div class="set-rows">${setsHtml}</div>
-        ${tip ? `<div class="set-tip">💡 ${tip}</div>` : ''}
-      </div>`;
+    `;
     list.appendChild(card);
+    if (ex.isCustom) attachSwipeDelete(card);
   });
+}
+
+function attachSwipeDelete(cardEl) {
+  const main = cardEl.querySelector('.exercise-main');
+  if (!main) return;
+  let startX = null;
+  let current = 0;
+  const OPEN_X = 72;
+  const OPEN_TRIGGER = 42;
+
+  const setX = (x) => {
+    const safe = Math.max(0, Math.min(OPEN_X, x));
+    current = safe;
+    main.style.transform = `translateX(${safe}px)`;
+  };
+  const close = () => setX(0);
+
+  main.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+  }, { passive: true });
+
+  main.addEventListener('touchmove', (e) => {
+    if (startX == null) return;
+    const dx = e.touches[0].clientX - startX;
+    setX(dx);
+  }, { passive: true });
+
+  main.addEventListener('touchend', () => {
+    if (startX == null) return;
+    setX(current >= OPEN_TRIGGER ? OPEN_X : 0);
+    startX = null;
+  });
+
+  cardEl.addEventListener('mouseleave', close);
 }
 // ============================================================
 // REST DAY TOGGLE
@@ -2159,7 +2204,7 @@ function renderProfile() {
       const sign = d > 0 ? '+' : '';
       if (d != 0) diffHtml = `<span class="w-diff ${cls}">${sign}${d}kg</span>`;
     }
-    histHtml += `<div class="weight-entry"><span class="w-date">${e.date}</span><div style="display:flex;align-items:center;gap:8px;">${diffHtml}<span class="w-val">${e.weight} kg</span></div></div>`;
+    histHtml += `<div class="weight-entry"><span class="w-date">${e.date}</span><div style="display:flex;align-items:center;gap:8px;">${diffHtml}<span class="w-val">${e.weight} kg</span><button class="w-del" onclick="deleteWeightEntry('${e.date}')">Sil</button></div></div>`;
   });
 
   let chartHtml = '';
@@ -2273,6 +2318,17 @@ function saveMetrics() {
     if (idx >= 0) log[idx].weight = w; else log.push({ date: today, weight: w });
   }
   saveData(); renderStats(); renderProfile(); toast('✓ Kaydedildi');
+}
+
+function deleteWeightEntry(dateStr) {
+  if (!st.metrics?.weightLog?.length) return;
+  const idx = st.metrics.weightLog.findIndex(e => e.date === dateStr);
+  if (idx < 0) return;
+  st.metrics.weightLog.splice(idx, 1);
+  saveData();
+  renderStats();
+  renderProfile();
+  toast('Kilo kaydı silindi');
 }
 
 function editName() {
