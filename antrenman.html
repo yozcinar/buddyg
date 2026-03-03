@@ -450,6 +450,33 @@
   .form-input::placeholder { color: var(--muted); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
+  /* EXERCISE POOL */
+  .pool-cat-row {
+    display: flex; gap: 8px; overflow-x: auto;
+    scrollbar-width: none; margin-bottom: 10px;
+  }
+  .pool-cat-row::-webkit-scrollbar { display: none; }
+  .pool-cat-btn {
+    flex-shrink: 0; border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); border-radius: 999px; padding: 7px 12px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .pool-cat-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
+  .pool-list { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px; }
+  .pool-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; cursor: pointer;
+  }
+  .pool-item:active { opacity: 0.85; }
+  .pool-item-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .pool-item-name { font-size: 14px; font-weight: 700; }
+  .pool-item-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .pool-item-pill {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: #000; background: var(--accent); border-radius: 999px; padding: 4px 7px;
+    font-weight: 800; white-space: nowrap;
+  }
+
   /* COLOR PICKER */
   .color-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
   .color-dot {
@@ -544,8 +571,13 @@
   <div class="sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-title">EGZERSİZ EKLE</div>
-    <div class="sheet-sub">Kendi hareketini ekle</div>
+    <div class="sheet-sub">Hazır havuzdan seç veya kendi hareketini yaz</div>
     <div class="sheet-body">
+      <div class="form-group">
+        <label class="form-label">Hazır Egzersiz Havuzu</label>
+        <div class="pool-cat-row" id="poolCats"></div>
+        <div class="pool-list" id="poolList"></div>
+      </div>
       <div class="form-group">
         <label class="form-label">Hareket Adı</label>
         <input class="form-input" id="exName" type="text" placeholder="örn. Cable Fly">
@@ -723,6 +755,54 @@ const VIDEOS = {
   "Hammer Curl": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-hammer-curl-front.mp4",
   "Bulgarian Split Squat": "https://media.musclewiki.com/media/uploads/videos/branded/male-dumbbell-bulgarian-split-squat-front.mp4",
   "Hip Thrust": "https://media.musclewiki.com/media/uploads/videos/branded/male-barbell-hip-thrust-front.mp4"
+};
+
+const EXERCISE_LIBRARY = {
+  gogus: {
+    label: 'Göğüs',
+    items: [
+      { name: 'Machine Chest Press', sets: 4, reps: '10' },
+      { name: 'İncline Dumbbell Press', sets: 3, reps: '10' },
+      { name: 'Cable Fly', sets: 3, reps: '12' },
+      { name: 'Push-Up', sets: 3, reps: 'Maks' }
+    ]
+  },
+  sirt: {
+    label: 'Sırt',
+    items: [
+      { name: 'Lat Pulldown', sets: 3, reps: '10' },
+      { name: 'Barbell Row', sets: 4, reps: '8' },
+      { name: 'Cable Row (tek kol)', sets: 3, reps: '10' },
+      { name: 'Face Pull', sets: 3, reps: '15' }
+    ]
+  },
+  omuz: {
+    label: 'Omuz',
+    items: [
+      { name: 'Shoulder Press', sets: 3, reps: '10' },
+      { name: 'Lateral Raise', sets: 3, reps: '15' },
+      { name: 'Rear Delt Fly', sets: 3, reps: '15' },
+      { name: 'Face Pull', sets: 3, reps: '15' }
+    ]
+  },
+  bacak: {
+    label: 'Bacak',
+    items: [
+      { name: 'Squat', sets: 4, reps: '8' },
+      { name: 'Leg Press', sets: 3, reps: '12' },
+      { name: 'Leg Curl', sets: 3, reps: '12' },
+      { name: 'Calf Raise', sets: 4, reps: '15' }
+    ]
+  },
+  kol: {
+    label: 'Kol',
+    items: [
+      { name: 'Bicep Curl (bar)', sets: 3, reps: '12' },
+      { name: 'Hammer Curl', sets: 3, reps: '12' },
+      { name: 'Tricep Pushdown', sets: 3, reps: '12' },
+      { name: 'Skull Crusher', sets: 3, reps: '10' }
+    ]
+  }
 };
 
 const BASE_PROGRAM = {
@@ -1520,9 +1600,60 @@ function importProgram() {
 // CUSTOM EXERCISES
 // ============================================================
 let addExDay = null;
+let addExCategory = 'gogus';
+
+function renderExercisePool() {
+  const cats = document.getElementById('poolCats');
+  const list = document.getElementById('poolList');
+  if (!cats || !list) return;
+
+  cats.innerHTML = '';
+  Object.entries(EXERCISE_LIBRARY).forEach(([key, cat]) => {
+    const b = document.createElement('button');
+    b.className = 'pool-cat-btn' + (key === addExCategory ? ' active' : '');
+    b.textContent = cat.label;
+    b.onclick = () => setAddExCategory(key);
+    cats.appendChild(b);
+  });
+
+  list.innerHTML = '';
+  const items = EXERCISE_LIBRARY[addExCategory]?.items || [];
+  items.forEach((ex, i) => {
+    const el = document.createElement('div');
+    el.className = 'pool-item';
+    el.innerHTML = `
+      <div class="pool-item-top">
+        <div>
+          <div class="pool-item-name">${ex.name}</div>
+          <div class="pool-item-meta">${ex.sets} set · ${ex.reps} tekrar</div>
+        </div>
+        <span class="pool-item-pill">Ekle</span>
+      </div>
+    `;
+    el.onclick = () => applyLibraryExercise(i);
+    list.appendChild(el);
+  });
+}
+
+function setAddExCategory(catKey) {
+  addExCategory = catKey;
+  renderExercisePool();
+}
+
+function applyLibraryExercise(index) {
+  const ex = EXERCISE_LIBRARY[addExCategory]?.items?.[index];
+  if (!ex) return;
+  document.getElementById('exName').value = ex.name || '';
+  document.getElementById('exSets').value = ex.sets || '';
+  document.getElementById('exReps').value = ex.reps || '';
+  document.getElementById('exTip').value = ex.tip || TIPS[ex.name] || '';
+}
+
 function openAddEx() {
   addExDay = st.currentDay;
+  addExCategory = 'gogus';
   ['exName','exSets','exReps','exTip'].forEach(id => document.getElementById(id).value = '');
+  renderExercisePool();
   document.getElementById('addExOverlay').classList.add('open');
 }
 function closeAddEx(e) { if (e.target.id === 'addExOverlay') document.getElementById('addExOverlay').classList.remove('open'); }
