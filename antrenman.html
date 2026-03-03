@@ -288,6 +288,8 @@
     flex: 1; background: var(--surface); border: 1px solid var(--border);
     border-radius: 10px; padding: 10px 14px; color: var(--text);
     font-family: 'DM Sans', sans-serif; font-size: 15px; -webkit-appearance: none;
+    width: 100%;
+    max-width: 100%;
   }
   .metric-input:focus { outline: none; border-color: var(--accent); }
   .metric-input::placeholder { color: var(--muted); }
@@ -298,6 +300,11 @@
     cursor: pointer;
     width: auto;
     grid-column: 1 / -1;
+  }
+
+  @media (max-width: 480px) {
+    .input-row { grid-template-columns: 1fr; }
+    .save-btn { width: 100%; }
   }
 
   /* BMI */
