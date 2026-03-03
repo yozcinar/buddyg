@@ -261,20 +261,42 @@
   .bottom-nav {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 430px;
-    background: rgba(12,12,12,0.96); backdrop-filter: blur(20px);
-    border-top: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(12,14,18,0.84) 0%, rgba(8,9,12,0.94) 100%);
+    backdrop-filter: blur(22px) saturate(120%);
+    -webkit-backdrop-filter: blur(22px) saturate(120%);
+    border-top: 1px solid rgba(255,255,255,0.08);
     display: grid; grid-template-columns: 1fr 1fr;
-    padding: 8px 20px env(safe-area-inset-bottom, 16px); gap: 8px;
+    padding: 8px 14px calc(env(safe-area-inset-bottom, 14px) + 2px); gap: 8px;
     z-index: 200;
+    box-shadow: 0 -8px 26px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .bottom-nav::before {
+    content: "";
+    position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(79,240,255,0.35), rgba(232,255,71,0.35), transparent);
+    pointer-events: none;
   }
   .nav-btn {
-    background: transparent; border: none; color: var(--muted);
+    background: transparent; border: 1px solid transparent; color: var(--muted);
     font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
-    padding: 8px 4px; border-radius: 12px; cursor: pointer; transition: all 0.2s;
+    padding: 8px 4px; border-radius: 14px; cursor: pointer; transition: all 0.25s;
     display: flex; flex-direction: column; align-items: center; gap: 3px;
+    position: relative;
   }
-  .nav-btn.active { color: var(--accent); }
-  .nav-icon { font-size: 22px; }
+  .nav-btn.active {
+    color: var(--accent);
+    background: linear-gradient(180deg, rgba(79,240,255,0.12), rgba(232,255,71,0.09));
+    border-color: rgba(255,255,255,0.1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 16px rgba(0,0,0,0.35);
+    transform: translateY(-1px);
+  }
+  .nav-icon {
+    font-size: 22px;
+    width: 30px; height: 30px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: transform 0.22s ease, background-color 0.22s ease;
+  }
+  .nav-btn.active .nav-icon { background: rgba(255,255,255,0.06); transform: scale(1.06); }
 
   /* PROFILE PAGE */
   .profile-header {
